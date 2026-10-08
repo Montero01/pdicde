@@ -975,6 +975,31 @@ function drawBlindexVector(doc, x, y, size) {
 }
 
 // ==================== CERTIFICADO ====================
+// ==================== HELPER: DESENHA LOGO BLINDEX VETORIAL ====================
+function drawBlindexVector(doc, x, y, size) {
+  const RED = [230, 30, 37];
+  const WHITE = [255, 255, 255];
+
+  // Quadrado vermelho
+  doc.setFillColor(...RED);
+  doc.rect(x, y, size, size, 'F');
+
+  // Texto "BLINDEX" rotacionado 45° — tamanho proporcional
+  doc.saveGraphicsState();
+  doc.setTextColor(...WHITE);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(size * 0.32);   // ~7pt para quadrado de 22mm
+  const cx = x + size / 2;
+  const cy = y + size / 2 + size * 0.05;  // compensa baseline
+  doc.text('BLINDEX', cx, cy, { align: 'center', angle: 45 });
+
+  // ® no canto superior direito
+  doc.setFontSize(size * 0.12);
+  doc.text('®', x + size * 0.82, y + size * 0.22, { align: 'center' });
+  doc.restoreGraphicsState();
+}
+
+// ==================== CERTIFICADO ====================
 async function downloadCertificate() {
   if (!certificateData) return;
   const { completion, course } = certificateData;
@@ -993,29 +1018,20 @@ async function downloadCertificate() {
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, W, H, 'F');
 
-  // ===================== CARREGA LOGOS =====================
+  // ===================== CARREGA LOGO CDE =====================
   let logoDataUrl = null;
-  let blindexDataUrl = null;
-
   try {
     const logoUrl = 'https://casadosespelhos.com.br/wp-content/uploads/2018/05/marca_cde_cores_horizontal_tag_bl-2048x713.png';
     logoDataUrl = await fetchImageAsDataURL(logoUrl);
   } catch (e) {
-    console.warn('Logo CDE não carregou, usando fallback.');
-  }
-
-  try {
-    const blindexUrl = 'https://www.blindex.com.br/-/media/blindex-new/images/logo-blindex.svg?h=70&iar=0&w=70';
-    blindexDataUrl = await svgToPngDataURL(blindexUrl, 300);
-  } catch (e) {
-    console.warn('SVG Blindex não carregou (CORS), usando versão vetorial.');
+    console.warn('Logo CDE não carregou, usando fallback de texto.');
   }
 
   // ===================== MARCA D'ÁGUA =====================
   if (logoDataUrl) {
     try {
       if (doc.setGState && doc.GState) {
-        doc.setGState(new doc.GState({ opacity: 0.06 }));
+        doc.setGState(new doc.GState({ opacity: 0.05 }));
         const wmW = 200;
         const wmH = wmW * (713 / 2048);
         doc.addImage(logoDataUrl, 'PNG', (W - wmW) / 2, (H - wmH) / 2 + 10, wmW, wmH);
@@ -1036,162 +1052,157 @@ async function downloadCertificate() {
   doc.setDrawColor(...VERMELHO); doc.setLineWidth(0.3);
   doc.rect(14, 14, W - 28, H - 28);
 
-  // ===================== LOGO CDE NO TOPO =====================
+  // ===================== LOGO CDE (CENTRO TOPO) =====================
   if (logoDataUrl) {
-    const logoW = 78;
+    const logoW = 90;
     const logoH = logoW * (713 / 2048);
     doc.addImage(logoDataUrl, 'PNG', (W - logoW) / 2, 19, logoW, logoH);
   } else {
+    // Fallback de texto
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(22);
     doc.setTextColor(...GRAFITE);
-    doc.text('CDE | CASA DOS ESPELHOS', W / 2, 34, { align: 'center' });
-    doc.setFontSize(10);
+    doc.text('CDE | CASA DOS ESPELHOS', W / 2, 32, { align: 'center' });
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...CINZA);
-    doc.text('desde 1978', W / 2, 40, { align: 'center' });
+    doc.text('desde 1978', W / 2, 38, { align: 'center' });
   }
 
-  // ===================== ETIQUETA + TÍTULO =====================
+  // ===================== ETIQUETA CDE ACADEMY =====================
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setTextColor(...CINZA);
   doc.text('C D E   A C A D E M Y', W / 2, 60, { align: 'center' });
 
-  doc.setFontSize(30);
+  // ===================== TÍTULO (SEM LINHA EMBAIXO) =====================
+  doc.setFontSize(28);
   doc.setTextColor(...VERMELHO);
-  doc.text('CERTIFICADO', W / 2, 76, { align: 'center' });
+  doc.text('CERTIFICADO', W / 2, 73, { align: 'center' });
 
-  doc.setFontSize(13);
+  doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...CINZA);
-  doc.text('DE CONCLUSÃO', W / 2, 84, { align: 'center' });
-
-  doc.setDrawColor(...LARANJA);
-  doc.setLineWidth(0.6);
-  doc.line(W / 2 - 48, 89, W / 2 + 48, 89);
+  doc.text('DE CONCLUSÃO', W / 2, 80, { align: 'center' });
 
   // ===================== CORPO =====================
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
   doc.setTextColor(...GRAFITE);
-  doc.text('Certificamos que', W / 2, 100, { align: 'center' });
+  doc.text('Certificamos que', W / 2, 94, { align: 'center' });
 
+  // Nome do aluno
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(26);
+  doc.setFontSize(22);
+  doc.setTextColor(...GRAFITE);
   const nome = currentProfile.full_name || currentUser.email;
-  doc.text(nome, W / 2, 114, { align: 'center' });
+  doc.text(nome, W / 2, 106, { align: 'center' });
 
-  // Cargo + Setor
+  // Cargo + Setor (se existirem)
   const cargo = currentProfile.position || '';
   const setor = currentProfile.sector || '';
   const partes = [];
   if (cargo) partes.push(cargo);
   if (setor) partes.push(setor);
 
-  let lineY = 120;
   if (partes.length > 0) {
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setTextColor(...CINZA);
-    doc.text(partes.join('  •  '), W / 2, 120, { align: 'center' });
-    lineY = 124;
+    doc.text(partes.join('  •  '), W / 2, 113, { align: 'center' });
   }
 
-  const nameWidth = doc.getTextWidth(nome);
-  doc.setDrawColor(...LARANJA);
-  doc.setLineWidth(0.3);
-  const lineHalf = Math.max(nameWidth / 2 + 5, 50);
-  doc.line(W / 2 - lineHalf, lineY, W / 2 + lineHalf, lineY);
-
+  // "concluiu com êxito"
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
   doc.setTextColor(...GRAFITE);
-  doc.text('concluiu com êxito o curso', W / 2, lineY + 10, { align: 'center' });
+  doc.text('concluiu com êxito o curso de', W / 2, 123, { align: 'center' });
 
+  // Título do curso
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
+  doc.setFontSize(15);
   doc.setTextColor(...LARANJA);
   const courseTitle = course.title.length > 70 ? course.title.substring(0, 67) + '...' : course.title;
-  doc.text(courseTitle, W / 2, lineY + 22, { align: 'center' });
+  doc.text(courseTitle, W / 2, 134, { align: 'center' });
+
+  // ===================== PARÁGRAFO PADRÃO =====================
+  const dateStr = new Date(completion.completed_at).toLocaleDateString('pt-BR');
+  const hours = course.workload_hours || 1;
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(...CINZA);
-  const dateStr = new Date(completion.completed_at).toLocaleDateString('pt-BR');
-  doc.text(`Carga horária: ${course.workload_hours || 1} hora(s)  •  Concluído em ${dateStr}`, W / 2, lineY + 32, { align: 'center' });
 
-  // ===================== ASSINATURA (CENTRO) =====================
-  const sigY = H - 42;
+  doc.text('Realizado através da nossa plataforma CDE ACADEMY,', W / 2, 144, { align: 'center' });
+  doc.text('na modalidade ONLINE, no período de ' + dateStr + ',', W / 2, 150, { align: 'center' });
+  doc.text('com carga horária total de ' + hours + ' horas.', W / 2, 156, { align: 'center' });
+
+  // ===================== ID ÚNICO DO CERTIFICADO =====================
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...VERMELHO);
+  doc.text('Certificado nº: ' + completion.certificate_code, W / 2, 168, { align: 'center' });
+
+  // ===================== ASSINATURA =====================
+  const sigY = 180;
+
+  // Linha em branco (para assinatura à mão)
   doc.setDrawColor(...GRAFITE);
   doc.setLineWidth(0.4);
-  doc.line(W / 2 - 65, sigY, W / 2 + 65, sigY);
+  doc.line(W / 2 - 55, sigY, W / 2 + 55, sigY);
 
-  doc.setFont('times', 'italic');
-  doc.setFontSize(17);
-  doc.setTextColor(...GRAFITE);
-  doc.text('CDE Blindex®', W / 2, sigY - 2, { align: 'center' });
-
+  // Legenda abaixo da linha
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(...CINZA);
-  doc.text('Diretoria / Recursos Humanos  •  desde 1978', W / 2, sigY + 5, { align: 'center' });
+  doc.text('Assinatura da Diretora', W / 2, sigY + 5, { align: 'center' });
+
+  // ===================== EMPRESA / CNPJ =====================
+  doc.setFontSize(7);
+  doc.setTextColor(...CINZA_CLARO);
+  doc.text('K K KRAUSS ARAUJO INDUSTRIA E COMERCIO DE VIDROS LTDA - ME', W / 2, sigY + 11, { align: 'center' });
+  doc.text('CDE Indústria de Vidros  •  CNPJ 84.544.246/0001-14', W / 2, sigY + 15, { align: 'center' });
 
   // ===================== QR CODE (CANTO INFERIOR ESQUERDO) =====================
   try {
     const qrContent = [
-      'CDE ACADEMY - CERTIFICADO',
-      `Curso: ${course.title}`,
-      `Aluno: ${nome}`,
-      `Codigo: ${completion.certificate_code}`,
-      `Emitido em: ${dateStr}`
+      'CDE ACADEMY',
+      'Certificado: ' + completion.certificate_code,
+      'Curso: ' + course.title,
+      'Aluno: ' + nome,
+      'Data: ' + dateStr
     ].join(' | ');
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=0&data=${encodeURIComponent(qrContent)}`;
+    const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=0&data=' + encodeURIComponent(qrContent);
     const qrDataUrl = await fetchImageAsDataURL(qrUrl);
     if (qrDataUrl) {
-      const qrSize = 24;
+      const qrSize = 22;
       const qrX = 30;
       const qrY = H - 52;
       doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
       doc.setFontSize(6);
       doc.setTextColor(...CINZA_CLARO);
-      doc.text('Verifique a autenticidade', qrX + qrSize / 2, qrY + qrSize + 3, { align: 'center' });
+      doc.text('Verifique autenticidade', qrX + qrSize / 2, qrY + qrSize + 3, { align: 'center' });
     }
   } catch (e) {
     console.warn('QR Code não pôde ser gerado.');
   }
 
-  // Código de verificação + data de emissão (abaixo do QR)
-  doc.setFontSize(7.5);
-  doc.setTextColor(...CINZA_CLARO);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Código: ${completion.certificate_code}`, 30, H - 20, { align: 'left' });
-  const emitidoEm = new Date().toLocaleDateString('pt-BR');
-  doc.text(`Emitido em: ${emitidoEm}`, 30, H - 16, { align: 'left' });
-
-  // ===================== LOGO BLINDEX (CANTO INFERIOR DIREITO) =====================
-  const blindexSize = 20; // quadrado 20x20mm
+  // ===================== LOGO BLINDEX VETORIAL (CANTO INFERIOR DIREITO) =====================
+  const blindexSize = 22;
   const blindexX = W - 30 - blindexSize;
-  const blindexY = H - 30 - blindexSize;
+  const blindexY = H - 52;
 
-  if (blindexDataUrl) {
-    // SVG convertido com sucesso
-    doc.addImage(blindexDataUrl, 'PNG', blindexX, blindexY, blindexSize, blindexSize);
-  } else {
-    // Fallback: desenha vetorial
-    drawBlindexVector(doc, blindexX, blindexY, blindexSize);
-  }
+  drawBlindexVector(doc, blindexX, blindexY, blindexSize);
 
-  // Etiqueta "Marca licenciada"
   doc.setFontSize(6);
   doc.setTextColor(...CINZA_CLARO);
   doc.setFont('helvetica', 'normal');
-  doc.text('Marca licenciada', blindexX + blindexSize / 2, blindexY + blindexSize + 3.5, { align: 'center' });
+  doc.text('Marca licenciada', blindexX + blindexSize / 2, blindexY + blindexSize + 3, { align: 'center' });
 
   // ===================== SALVAR =====================
   const safeTitle = course.title.replace(/[^a-zA-Z0-9]/g, '_');
   const safeName = nome.replace(/[^a-zA-Z0-9]/g, '_');
-  const fn = `Certificado_${safeTitle}_${safeName}.pdf`;
+  const fn = 'Certificado_' + safeTitle + '_' + safeName + '.pdf';
   doc.save(fn);
   showMessage('Certificado gerado! 📥', 'success');
 }
