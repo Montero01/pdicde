@@ -31,14 +31,17 @@
 
   <!-- COLABORADOR -->
   <div id="employee-view" class="hidden">
-    <div class="header">
-      <div>
-        <h1>Meu PDI</h1>
-        <div class="user-info" id="emp-user-info"></div>
-      </div>
-      <button class="secondary" onclick="logout()">Sair</button>
+   <div class="header">
+  <div class="header-user">
+    <div class="header-avatar" id="emp-avatar" onclick="openAvatarModal()" title="Alterar foto">CD</div>
+    <div>
+      <h1>Meu PDI - (Metas & Resultados)</h1>
+      <div class="user-info" id="emp-user-info"></div>
+      <div class="header-position" id="emp-position"></div>
     </div>
-
+  </div>
+  <button class="secondary" onclick="logout()">Sair</button>
+</div>
     <div class="score-box">
       <div class="score-main">
         <div class="number" id="emp-score">0</div>
@@ -78,14 +81,17 @@
 
   <!-- GESTÃO -->
   <div id="management-view" class="hidden">
-    <div class="header">
-      <div>
-        <h1 id="mgmt-title">Painel do Supervisor</h1>
-        <div class="user-info" id="mgmt-user-info"></div>
-      </div>
-      <button class="secondary" onclick="logout()">Sair</button>
+  <div class="header">
+  <div class="header-user">
+    <div class="header-avatar" id="mgmt-avatar" onclick="openAvatarModal()" title="Alterar foto">CD</div>
+    <div>
+      <h1 id="mgmt-title">Painel Gerencial</h1>
+      <div class="user-info" id="mgmt-user-info"></div>
+      <div class="header-position" id="mgmt-position"></div>
     </div>
-
+  </div>
+  <button class="secondary" onclick="logout()">Sair</button>
+</div>
     <div id="director-notice" class="director-notice hidden">
       <span class="icon">👔</span>
       <div>
