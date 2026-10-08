@@ -1,3 +1,12 @@
+// Mostra/esconde o botão do Academy conforme a tela
+function updateAcademyFabVisibility() {
+  const fab = document.querySelector('.academy-fab');
+  const loginView = document.getElementById('login-view');
+  if (!fab || !loginView) return;
+  const loginVisible = !loginView.classList.contains('hidden');
+  fab.style.display = loginVisible ? 'none' : 'flex';
+}
+
 // ==================== CONFIG ====================
 const SUPABASE_URL = 'https://whjyvphamkbjcrdzhzoc.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_EyZgqDQTSV-M-O3_l63V7Q_LFcFDl69';
@@ -124,6 +133,7 @@ async function loadUser() {
   if (error || !profile) return showMessage('Perfil não encontrado.', 'error');
   currentProfile = profile;
   document.getElementById('login-view').classList.add('hidden');
+  updateAcademyFabVisibility();
 
   const roleLower = (profile.role || '').toLowerCase();
   isMaster = profile.is_master === true || roleLower === 'master';
