@@ -670,5 +670,147 @@ async function validateCert(certId, status, manualPoints = null) {
 }
 
 // ==================== INIT ====================
+
+// ===================== AVATAR DE PERFIL =====================
+let selectedAvatarFile = null;
+
+/**
+ * Abre o modal de avatar.
+ * Pode ser chamado clicando no avatar da sidebar ou da topbar.
+ */
+function openAvatarModal() {
+  if (!currentUser || !currentProfile) return;
+
+  selectedAvatarFile = null;
+  document.getElementById('avatar-file-input').value = '';
+  document.getElementById('avatar-file-name').textContent = '';
+  document.getElementById('avatar-save-btn').disabled = true;
+
+  // Preview inicial — mostra o avatar atual ou as iniciais
+  const preview = document.getElementById('avatar-preview');
+  if (currentProfile.avatar_url) {
+    preview.style.backgroundImage = `url('${currentProfile.avatar_url}')`;
+    preview.textContent = '';
+  } else {
+    preview.style.backgroundImage = '';
+    preview.textContent = initials(currentProfile.full_name || currentUser.email);
+  }
+
+  document.getElementById('avatar-modal').classList.remove('hidden');
+}
+
+function closeAvatarModal() {
+  document.getElementById('avatar-modal').classList.add('hidden');
+  selectedAvatarFile = null;
+}
+
+/**
+ * Quando o usuário escolhe o arquivo, valida e mostra preview.
+ */
+function onAvatarFileSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Valida tamanho (5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    showMessage('Imagem muito grande. Máximo 5MB.', 'error');
+    event.target.value = '';
+    return;
+  }
+
+  // Valida tipo
+  const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+  if (!validTypes.includes(file.type)) {
+    showMessage('Formato inválido. Use JPG, PNG ou WEBP.', 'error');
+    event.target.value = '';
+    return;
+  }
+
+  selectedAvatarFile = file;
+  document.getElementById('avatar-file-name').textContent = '✓ ' + file.name;
+  document.getElementById('avatar-save-btn').disabled = false;
+
+  // Preview usando FileReader
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const preview = document.getElementById('avatar-preview');
+    preview.style.backgroundImage = `url('${e.target.result}')`;
+    preview.textContent = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+/**
+ * Faz o upload da foto e salva no banco.
+ */
+async function saveAvatar() {
+  if (!selectedAvatarFile) return;
+
+  const btn = document.getElementById('avatar-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
+
+  try {
+    const ext = selectedAvatarFile.name.split('.').pop().toLowerCase();
+    // ⚠️ O nome da pasta PRECISA ser o user_id por causa da policy do Storage
+    const filePath = `${currentUser.id}/avatar.${ext}`;
+
+    // 1) Upload pro Supabase Storage (upsert substitui se já existir)
+    const { error: upErr } = await db.storage
+      .from('avatars')
+      .upload(filePath, selectedAvatarFile, {
+        upsert: true,
+        contentType: selectedAvatarFile.type,
+        cacheControl: '3600'
+      });
+
+    if (upErr) throw upErr;
+
+    // 2) Pega a URL pública e adiciona timestamp para evitar cache
+    const { data: pub } = db.storage.from('avatars').getPublicUrl(filePath);
+    const publicUrl = pub.publicUrl + '?t=' + Date.now();
+
+    // 3) Salva no perfil do usuário
+    const { error: dbErr } = await db
+      .from('profiles')
+      .update({ avatar_url: publicUrl })
+      .eq('id', currentUser.id);
+
+    if (dbErr) throw dbErr;
+
+    // 4) Atualiza o estado local e a UI
+    currentProfile.avatar_url = publicUrl;
+    applyAvatarToUI(currentProfile.full_name || currentUser.email, publicUrl);
+
+    showMessage('Foto atualizada! ✅', 'success');
+    closeAvatarModal();
+
+  } catch (e) {
+    console.error('Erro ao salvar avatar:', e);
+    showMessage('Erro: ' + (e.message || 'falha no upload'), 'error');
+    btn.disabled = false;
+    btn.textContent = 'Salvar Foto';
+  }
+}
+
+/**
+ * Aplica a foto (ou iniciais) nos avatares da sidebar e topbar.
+ */
+function applyAvatarToUI(name, url) {
+  const sidebarAvatar = document.getElementById('user-avatar');
+  const topbarAvatar = document.getElementById('topbar-avatar');
+  const ini = initials(name);
+
+  [sidebarAvatar, topbarAvatar].forEach(el => {
+    if (!el) return;
+    if (url) {
+      el.style.backgroundImage = `url('${url}')`;
+      el.textContent = '';
+    } else {
+      el.style.backgroundImage = '';
+      el.textContent = ini;
+    }
+  });
+}
 db.auth.onAuthStateChange((event, session) => { if (event === 'SIGNED_IN' && session) loadUser(); });
 loadUser();
