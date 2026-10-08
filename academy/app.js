@@ -136,6 +136,7 @@ function renderView(view) {
   const main = document.getElementById('main-content');
   switch (view) {
     case 'home':         main.innerHTML = renderHome(); break;
+    case 'empresa':      main.innerHTML = renderEmpresa(); break;
     case 'mycourses':    main.innerHTML = renderMyCourses(); break;
     case 'catalog':      main.innerHTML = renderCatalog(); break;
     case 'certificates': main.innerHTML = renderCertificates(); break;
@@ -1656,6 +1657,99 @@ async function renderAnalyticsView() {
     main.innerHTML = `<div class="state-box" style="color: var(--cde-vermelho);">Erro ao carregar analytics: ${escapeHtml(e.message)}</div>`;
   }
 }
+
+function renderEmpresa() {
+  // ⚠️ Troque pelas URLs reais das suas imagens
+  const IMG_1 = 'https://casadosespelhos.com.br/wp-content/uploads/2020/03/WhatsApp-Image-2025-09-03-at-20.22.26.jpeg';
+  const IMG_2 = 'https://casadosespelhos.com.br/wp-content/uploads/2020/03/WhatsApp-Image-2025-09-03-at-20.22.25.jpeg';
+
+  return `
+    <section class="hero-banner" style="min-height:200px;">
+      <div class="hero-content">
+        <span class="hero-tag">🏢 Sobre nós</span>
+        <h1>Nossa Empresa</h1>
+        <p>Conheça um pouco da história, dos valores e da trajetória da CDE Blindex AM.</p>
+      </div>
+    </section>
+
+    <div class="section-header">
+      <h2>Nossa História</h2>
+      <span class="section-sub">Conheça nossa diretora Kilze Krauss</span>
+    </div>
+
+    <div style="background:#fff; border-radius:14px; padding:26px; border:1px solid var(--cinza-borda); box-shadow: var(--sombra-sm); margin-bottom:26px;">
+      <p style="font-size:0.95rem; color:var(--texto-soft); line-height:1.75; margin-bottom:16px;">
+        Sua trajetória se confunde com a própria história da CDE Blindex®, que completa quase 50 anos de mercado e se consolidou como referência em soluções de vidros modernos para a região.
+      </p>
+      <p style="font-size:0.95rem; color:var(--texto-soft); line-height:1.75; margin-bottom:16px;">
+        Kilze ocupa um lugar singular: é a única mulher no comando de uma linha de têmpera de vidros no estado do Amazonas, o que a torna não apenas uma gestora de destaque, mas também uma referência para outras mulheres que sonham em ocupar espaços de liderança em setores tradicionalmente masculinos. Sua atuação firme, visionária e inspiradora mostra que competência e sensibilidade podem caminhar juntas na construção de resultados sólidos.
+      </p>
+      <p style="font-size:0.95rem; color:var(--texto-soft); line-height:1.75;">
+        Durante seus mais de 10 anos de liderança, Kilze Krauss foi responsável por transformar a CDE Blindex® em um verdadeiro polo de excelência. Uma de suas principais conquistas foi a associação da empresa à marca Blindex®, líder mundial em soluções em vidros de segurança e design, o que elevou ainda mais o padrão de qualidade e credibilidade da companhia perante clientes e parceiros. Além disso, investiu fortemente em marketing, comunicação e educação do mercado, posicionando a CDE Blindex® como uma empresa próxima, transparente e comprometida com a inovação.
+      </p>
+    </div>
+
+    <div class="section-header">
+      <h2>Nossa Trajetória em Imagens</h2>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:18px; margin-bottom:26px;">
+      <figure style="background:#fff; border-radius:14px; overflow:hidden; border:1px solid var(--cinza-borda); box-shadow:var(--sombra-sm);">
+        <img src="${IMG_1}" alt="Marca CDE" style="width:100%; height:240px; object-fit:cover; display:block; background:#fff;">
+        <figcaption style="padding:14px 16px; font-size:0.85rem; color:var(--texto-soft); font-weight:600;">
+          À frente da CDE Blindex® há mais de uma década, Kilze Krauss tem conduzido a empresa por um caminho de inovação, qualidade e liderança no setor de vidros no Amazonas. 
+        </figcaption>
+      </figure>
+
+      <figure style="background:#fff; border-radius:14px; overflow:hidden; border:1px solid var(--cinza-borda); box-shadow:var(--sombra-sm);">
+        <img src="${IMG_2}" alt="Nossa equipe" style="width:100%; height:240px; object-fit:cover; display:block;">
+        <figcaption style="padding:14px 16px; font-size:0.85rem; color:var(--texto-soft); font-weight:600;">
+          Kilze acredita que o maior patrimônio da CDE Blindex® são as pessoas. Por isso, dedica atenção especial à valorização da equipe, investindo em treinamentos, integração e no desenvolvimento contínuo de seus colaboradores. Para ela, qualidade começa dentro de casa, com profissionais motivados, engajados e orgulhosos de fazer parte da história da empresa. Essa visão humanizada é um dos diferenciais de sua gestão e uma das razões pelas quais a CDE Blindex® mantém uma posição de destaque no mercado.
+        </figcaption>
+      </figure>
+    </div>
+
+    <div class="section-header">
+      <h2>Nossos Valores</h2>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px;">
+      ${renderValoresCards()}
+    </div>
+  `;
+}
+
+function renderValoresCards() {
+  const valores = [
+    { emoji: '🤝', titulo: 'Missão',      desc: 'Fabricar vidros BLINDEX® com qualidade, proporcionando segurança às pessoas.' },
+    { emoji: '🎯', titulo: 'Visão',    desc: 'Ser referência em vidros de qualidade no AMAZONAS' },
+    { emoji: '🌱', titulo: 'Valores', desc: 'Excelência e Qualidade | Respeito aos clientes, parceiros e colaboradores | Integridade | Segurança.' }
+  ];
+  let html = '';
+  for (const v of valores) {
+    html += '<div style="background:#fff; border-radius:14px; padding:20px; border:1px solid var(--cinza-borda); box-shadow:var(--sombra-sm);">';
+    html += '<div style="font-size:1.8rem; margin-bottom:8px;">' + v.emoji + '</div>';
+    html += '<div style="font-weight:800; font-size:0.95rem; margin-bottom:6px;">' + v.titulo + '</div>';
+    html += '<div style="font-size:0.82rem; color:var(--texto-soft); line-height:1.5;">' + v.desc + '</div>';
+    html += '</div>';
+  }
+  return html;
+}
+  
+function renderMyCourses() {
+  const enrolled = filterCourses(myEnrollments);
+  if (enrolled.length === 0) {
+    return `<div class="section-header"><h2>Meus Cursos</h2></div>${renderEmpty('📚', 'Você ainda não está matriculado em nenhum curso.')}`;
+  }
+  return `
+    <div class="section-header">
+      <h2>Meus Cursos</h2>
+      <span class="section-sub">${enrolled.length} curso${enrolled.length === 1 ? '' : 's'}</span>
+    </div>
+    <div class="courses-grid">${enrolled.map(renderCourseCard).join('')}</div>
+  `;
+}
+
 // ==================== INIT ====================
 db.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') window.location.href = PDI_URL; });
 
