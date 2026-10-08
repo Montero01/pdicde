@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDI | CDE Blindex</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="brand-bar">
+    <img src="https://casadosespelhos.com.br/wp-content/uploads/2018/05/marca_cde_cores_horizontal_tag_bl-2048x713.png"
+         alt="CDE Casa dos Espelhos | Blindex">
+  </div>
+
+  <div id="message-box"></div>
+
+  <!-- LOGIN -->
+  <div id="login-view">
+    <h1>🎯 PDI | CASA DOS ESPELHOS</h1>
+    <p>Acesse com seu e-mail (@pdicde.com) CDE Blindex</p>
+    <input type="email" id="login-email" placeholder="nomeultimonome@pdicde.com">
+    <input type="password" id="login-password" placeholder="Senha">
+    <br>
+    <button onclick="login()">Entrar</button>
+    <br>
+  </div>
+
+  <!-- COLABORADOR -->
+  <div id="employee-view" class="hidden">
+    <div class="header">
+      <div>
+        <h1>Meu PDI</h1>
+        <div class="user-info" id="emp-user-info"></div>
+      </div>
+      <button class="secondary" onclick="logout()">Sair</button>
+    </div>
+
+    <div class="score-box">
+      <div class="score-main">
+        <div class="number" id="emp-score">0</div>
+        <div class="label">Pontos acumulados</div>
+      </div>
+      <div class="quarters-row" id="emp-quarters"></div>
+      <div class="coefficient-wrap">
+        <span class="coef-label">Coeficiente Geral</span>
+        <span class="coef-value" id="emp-coef">0%</span>
+      </div>
+      <div class="coefficient-bar"><div class="coefficient-bar-fill" id="emp-coef-bar" style="width:0%"></div></div>
+    </div>
+
+    <div class="card">
+      <h2>📋 Minhas Metas</h2>
+      <div id="goals-list"></div>
+    </div>
+
+    <div class="card">
+      <h2>📎 Enviar Certificado/Relatório/Comprovante</h2>
+      <form id="upload-form" onsubmit="submitCertificate(event)">
+        <label>Meta relacionada:</label>
+        <select id="cert-goal" required></select>
+        <label>Arquivo (PDF, PNG, JPG ou JPEG):</label>
+        <div class="file-input-wrapper">
+          <input type="file" id="cert-file" accept=".pdf,.png,.jpg,.jpeg" required>
+        </div>
+        <button type="submit" class="success">Enviar para Validação Gerencial</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>📜 Metas e Certificações Validadas</h2>
+      <div id="emp-certs-list"></div>
+    </div>
+  </div>
+
+  <!-- GESTÃO -->
+  <div id="management-view" class="hidden">
+    <div class="header">
+      <div>
+        <h1 id="mgmt-title">Painel do Supervisor</h1>
+        <div class="user-info" id="mgmt-user-info"></div>
+      </div>
+      <button class="secondary" onclick="logout()">Sair</button>
+    </div>
+
+    <div id="director-notice" class="director-notice hidden">
+      <span class="icon">👔</span>
+      <div>
+        Bem-vindo(a), <strong id="director-notice-role">Diretoria</strong>. Você tem acesso irrestrito.
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">📊 Visão Geral</button>
+      <button class="tab-btn" data-tab="goals" onclick="switchTab('goals')">🎯 Gerenciar Metas</button>
+      <button class="tab-btn hidden" id="tab-btn-mypdi" data-tab="mypdi" onclick="switchTab('mypdi')">👤 Meu PDI</button>
+    </div>
+
+    <div id="tab-overview" class="tab-content">
+      <div class="card">
+        <h2>📊 Comparativo por Setor</h2>
+        <div id="sector-compare-container"><div class="rank-empty">Carregando…</div></div>
+      </div>
+      <div class="card">
+        <h2>🎯 Taxa de Aderência às Metas <span style="font-size:0.72rem; font-weight:600; color:#6D6E71; margin-left:6px;">(aprovados / enviados)</span></h2>
+        <div id="adherence-container"><div class="rank-empty">Carregando…</div></div>
+      </div>
+      <div class="card">
+        <h2>🏆 Ranking de Pontuação</h2>
+        <div class="ranking-filter-row">
+          <label for="ranking-sector-filter">Filtrar por setor:</label>
+          <select id="ranking-sector-filter" onchange="applySectorFilter()">
+            <option value="all">Todos os setores</option>
+            <option value="COMERCIAL">Comercial</option>
+            <option value="PRODUCAO">Produção</option>
+            <option value="ADMINISTRATIVO">Administrativo</option>
+          </select>
+          <span id="filter-lock-msg" class="filter-lock hidden">🔒 Você vê apenas o seu setor</span>
+        </div>
+        <div id="ranking-container"><div class="rank-empty">Carregando…</div></div>
+      </div>
+      <div class="card">
+        <h2>🔍 Certificados Pendentes</h2>
+        <div id="pending-certs-list"></div>
+      </div>
+      <div class="card">
+        <h2>✅ Histórico de Validações</h2>
+        <div id="validated-certs-list"></div>
+      </div>
+    </div>
+
+    <div id="tab-goals" class="tab-content hidden">
+      <div class="card">
+        <h2>➕ Criar Nova Meta</h2>
+        <p style="color:#6D6E71; font-size:0.85rem; margin-bottom:16px;" id="goal-scope-hint"></p>
+        <form id="create-goal-form" onsubmit="createGoal(event)">
+          <label>Colaborador(a):</label>
+          <select id="goal-assignee" required><option value="">Carregando…</option></select>
+          <div class="form-grid">
+            <div class="full">
+              <label>Meta(s):</label>
+              <input type="text" id="goal-title" placeholder="Ex: Concluir curso de Excel Avançado" required maxlength="120">
+            </div>
+            <div class="full">
+              <label>Descrição (opcional):</label>
+              <textarea id="goal-desc" placeholder="Detalhes da meta..." maxlength="500"></textarea>
+            </div>
+            <div><label>Prazo:</label><input type="date" id="goal-deadline" required></div>
+            <div><label>Pontos máximos:</label><input type="number" id="goal-points" min="1" max="999" value="10" required></div>
+          </div>
+          <button type="submit" class="success">Criar Meta</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>📋 Metas definidas</h2>
+        <div class="ranking-filter-row">
+          <label for="goals-sector-filter">Filtrar por setor:</label>
+          <select id="goals-sector-filter" onchange="renderAllGoals()">
+            <option value="all">Todos os setores</option>
+            <option value="COMERCIAL">Comercial</option>
+            <option value="PRODUCAO">Produção</option>
+            <option value="ADMINISTRATIVO">Administrativo</option>
+          </select>
+          <input type="text" id="goals-search" placeholder="Buscar colaborador..." style="width:auto; min-width:200px; margin:0; padding:8px 12px; font-size:0.85rem;" oninput="renderAllGoals()">
+        </div>
+        <div id="all-goals-list"><div class="rank-empty">Carregando…</div></div>
+      </div>
+    </div>
+
+    <div id="tab-mypdi" class="tab-content hidden">
+      <div class="score-box">
+        <div class="score-main">
+          <div class="number" id="mgmt-score">0</div>
+          <div class="label">Meus pontos acumulados</div>
+        </div>
+        <div class="quarters-row" id="mgmt-quarters"></div>
+        <div class="coefficient-wrap">
+          <span class="coef-label">Coeficiente Geral</span>
+          <span class="coef-value" id="mgmt-coef">0%</span>
+        </div>
+        <div class="coefficient-bar"><div class="coefficient-bar-fill" id="mgmt-coef-bar" style="width:0%"></div></div>
+      </div>
+      <div class="card">
+        <h2>🎯 Minhas Metas</h2>
+        <div id="mgmt-goals-list"></div>
+      </div>
+      <div class="card">
+        <h2>📎 Enviar Certificado/Relatório/Comprovante</h2>
+        <form id="mgmt-upload-form" onsubmit="submitMgmtCertificate(event)">
+          <label>Meta relacionada:</label>
+          <select id="mgmt-cert-goal" required></select>
+          <label>Arquivo (PDF, PNG, JPG ou JPEG):</label>
+          <div class="file-input-wrapper"><input type="file" id="mgmt-cert-file" accept=".pdf,.png,.jpg,.jpeg" required></div>
+          <button type="submit" class="success">Enviar para Validação</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>📜 Meus Certificados/Resultados</h2>
+        <div id="mgmt-certs-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <div class="footer-line"></div>
+  <div>Sistema desenvolvido <span class="footer-dev">para </span> <span class="footer-brand">CDE Blindex AM</span>• 2026</div>
+  <div class="footer-rights">© Todos os direitos reservados</div>
+</footer>
+
+<!-- MODAIS -->
+<div id="approve-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>✅ Aprovar Certificado</h3>
+    <p class="modal-info" id="modal-info"></p>
+    <label for="modal-points">Nota a atribuir (pontos):</label>
+    <input type="number" id="modal-points" min="0" step="1">
+    <p class="modal-hint" id="modal-hint"></p>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeApproveModal()">Cancelar</button>
+      <button class="success" onclick="confirmApprove()">Confirmar Aprovação</button>
+    </div>
+  </div>
+</div>
+
+<div id="edit-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>✏️ Editar Meta</h3>
+    <p class="modal-info" id="edit-modal-info"></p>
+    <label>Título da meta:</label>
+    <input type="text" id="edit-goal-title" maxlength="120" required>
+    <label>Descrição (opcional):</label>
+    <textarea id="edit-goal-desc" maxlength="500"></textarea>
+    <div class="form-grid">
+      <div><label>Prazo:</label><input type="date" id="edit-goal-deadline" required></div>
+      <div><label>Pontos máximos:</label><input type="number" id="edit-goal-points" min="1" max="999" required></div>
+    </div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeEditModal()">Cancelar</button>
+      <button class="success" onclick="confirmEditGoal()">Salvar Alterações</button>
+    </div>
+  </div>
+</div>
+
+<div id="delete-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>🗑️ Excluir Meta</h3>
+    <p class="modal-info" id="delete-modal-info"></p>
+    <p style="font-size:0.85rem; color:#A00D24; margin-bottom:16px;">⚠️ Essa ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeDeleteModal()">Cancelar</button>
+      <button class="danger" onclick="confirmDeleteGoal()">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
