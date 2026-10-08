@@ -46,6 +46,126 @@ let playerTickInterval = null;
 
 let certificateData = null;
 
+// ===================== AVATAR DE PERFIL =====================
+let selectedAvatarFile = null;
+
+function openAvatarModal() {
+  if (!currentUser || !currentProfile) return;
+
+  selectedAvatarFile = null;
+  document.getElementById('avatar-file-input').value = '';
+  document.getElementById('avatar-file-name').textContent = '';
+  document.getElementById('avatar-save-btn').disabled = true;
+
+  const preview = document.getElementById('avatar-preview');
+  if (currentProfile.avatar_url) {
+    preview.style.backgroundImage = `url('${currentProfile.avatar_url}')`;
+    preview.textContent = '';
+  } else {
+    preview.style.backgroundImage = '';
+    preview.textContent = initials(currentProfile.full_name || currentUser.email);
+  }
+
+  document.getElementById('avatar-modal').classList.remove('hidden');
+}
+
+function closeAvatarModal() {
+  document.getElementById('avatar-modal').classList.add('hidden');
+  selectedAvatarFile = null;
+}
+
+function onAvatarFileSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (file.size > 5 * 1024 * 1024) {
+    showMessage('Imagem muito grande. Máximo 5MB.', 'error');
+    event.target.value = '';
+    return;
+  }
+
+  const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+  if (!validTypes.includes(file.type)) {
+    showMessage('Formato inválido. Use JPG, PNG ou WEBP.', 'error');
+    event.target.value = '';
+    return;
+  }
+
+  selectedAvatarFile = file;
+  document.getElementById('avatar-file-name').textContent = '✓ ' + file.name;
+  document.getElementById('avatar-save-btn').disabled = false;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const preview = document.getElementById('avatar-preview');
+    preview.style.backgroundImage = `url('${e.target.result}')`;
+    preview.textContent = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveAvatar() {
+  if (!selectedAvatarFile) return;
+
+  const btn = document.getElementById('avatar-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
+
+  try {
+    const ext = selectedAvatarFile.name.split('.').pop().toLowerCase();
+    const filePath = `${currentUser.id}/avatar.${ext}`;
+
+    const { error: upErr } = await db.storage
+      .from('avatars')
+      .upload(filePath, selectedAvatarFile, {
+        upsert: true,
+        contentType: selectedAvatarFile.type,
+        cacheControl: '3600'
+      });
+
+    if (upErr) throw upErr;
+
+    const { data: pub } = db.storage.from('avatars').getPublicUrl(filePath);
+    const publicUrl = pub.publicUrl + '?t=' + Date.now();
+
+    const { error: dbErr } = await db
+      .from('profiles')
+      .update({ avatar_url: publicUrl })
+      .eq('id', currentUser.id);
+
+    if (dbErr) throw dbErr;
+
+    currentProfile.avatar_url = publicUrl;
+    applyAvatarToUI(currentProfile.full_name || currentUser.email, publicUrl);
+
+    showMessage('Foto atualizada! ✅', 'success');
+    closeAvatarModal();
+
+  } catch (e) {
+    console.error('Erro ao salvar avatar:', e);
+    showMessage('Erro: ' + (e.message || 'falha no upload'), 'error');
+    btn.disabled = false;
+    btn.textContent = 'Salvar Foto';
+  }
+}
+
+function applyAvatarToUI(name, url) {
+  const sidebarAvatar = document.getElementById('user-avatar');
+  const topbarAvatar = document.getElementById('topbar-avatar');
+  const ini = initials(name);
+
+  [sidebarAvatar, topbarAvatar].forEach(el => {
+    if (!el) return;
+    if (url) {
+      el.style.backgroundImage = `url('${url}')`;
+      el.textContent = '';
+    } else {
+      el.style.backgroundImage = '';
+      el.textContent = ini;
+    }
+  });
+}
+
 // ==================== TEMA (DARK / LIGHT) ====================
 function initTheme() {
   const saved = localStorage.getItem('cde-academy-theme');
