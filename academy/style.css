@@ -507,6 +507,51 @@ input, select, textarea { font-family: inherit; }
   -webkit-text-fill-color: transparent;
 }
 
+/* ===================== AVATAR CLICÁVEL ===================== */
+.sidebar-avatar {
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s;
+  background-size: cover !important;
+  background-position: center !important;
+}
+.sidebar-avatar:hover { transform: scale(1.05); }
+.sidebar-avatar::after {
+  content: "📷";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+  color: #fff;
+}
+.sidebar-avatar:hover::after { opacity: 1; }
+
+.topbar-avatar {
+  cursor: pointer;
+  background-size: cover !important;
+  background-position: center !important;
+  transition: transform 0.15s;
+}
+.topbar-avatar:hover { transform: scale(1.08); }
+
+/* ===================== CARGO/FUNÇÃO DO USUÁRIO ===================== */
+.sidebar-user-position {
+  font-size: 0.78rem;
+  color: var(--texto-soft);
+  font-weight: 500;
+  line-height: 1.3;
+  margin-bottom: 6px;
+  margin-top: 4px;
+  font-style: italic;
+}
+.sidebar-user-position:empty { display: none; }
+
 /* ===================== RESPONSIVO ===================== */
 @media (max-width: 900px) {
   #app-view { grid-template-columns: 1fr; }
@@ -558,8 +603,6 @@ input, select, textarea { font-family: inherit; }
 }
 
 [data-theme="dark"] body { background: var(--cinza-bg); color: var(--texto); }
-
-/* Sidebar e topbar */
 [data-theme="dark"] .sidebar,
 [data-theme="dark"] .topbar { background: var(--branco); border-color: var(--cinza-borda); }
 [data-theme="dark"] .sidebar-logo,
@@ -575,27 +618,22 @@ input, select, textarea { font-family: inherit; }
   background: rgba(255, 255, 255, 0.08);
   border-color: var(--cde-laranja);
 }
-
 [data-theme="dark"] .icon-btn:hover,
 [data-theme="dark"] .hamburger:hover { background: rgba(255, 255, 255, 0.06); }
 
-/* Nav */
 [data-theme="dark"] .nav-item:hover { background: rgba(232, 119, 34, 0.12); color: var(--cde-laranja); }
 [data-theme="dark"] .logout-btn:hover { background: rgba(232, 119, 34, 0.12); }
 
-/* Cards e containers */
 [data-theme="dark"] .course-card,
 [data-theme="dark"] .stat-card,
 [data-theme="dark"] .tree-module,
 [data-theme="dark"] .quiz-question-card,
 [data-theme="dark"] .state-box { background: var(--branco); border-color: var(--cinza-borda); }
 
-/* Modais */
 [data-theme="dark"] .modal-box { background: var(--branco); color: var(--texto); }
 [data-theme="dark"] .modal-box h3 { color: var(--texto); }
 [data-theme="dark"] .modal-info { background: rgba(255, 255, 255, 0.04); }
 
-/* Player */
 [data-theme="dark"] #lesson-player,
 [data-theme="dark"] .player-header,
 [data-theme="dark"] .player-footer { background: var(--branco); color: var(--texto); border-color: var(--cinza-borda); }
@@ -606,7 +644,6 @@ input, select, textarea { font-family: inherit; }
 [data-theme="dark"] .content-viewer { background: #0A0A14; border-color: var(--cinza-borda); }
 [data-theme="dark"] .content-viewer .text-content { background: var(--branco); border-color: var(--cinza-borda); color: var(--texto); }
 
-/* Quiz do player */
 [data-theme="dark"] .quiz-block {
   background: linear-gradient(135deg, rgba(232, 119, 34, 0.12), rgba(200, 16, 46, 0.06));
   border-left-color: var(--cde-laranja);
@@ -615,12 +652,10 @@ input, select, textarea { font-family: inherit; }
 [data-theme="dark"] .player-quiz-option { border-color: var(--cinza-borda); color: var(--texto); }
 [data-theme="dark"] .player-quiz-option:hover { background: rgba(232, 119, 34, 0.08); border-color: var(--cde-laranja); }
 
-/* Upload */
 [data-theme="dark"] .upload-box { background: rgba(232, 119, 34, 0.06); border-color: var(--cde-laranja); }
 [data-theme="dark"] .upload-box:hover { background: rgba(232, 119, 34, 0.12); }
 [data-theme="dark"] .upload-box .upload-label { color: var(--texto); }
 
-/* Formulários */
 [data-theme="dark"] .form-group input,
 [data-theme="dark"] .form-group select,
 [data-theme="dark"] .form-group textarea {
@@ -638,21 +673,17 @@ input, select, textarea { font-family: inherit; }
 }
 [data-theme="dark"] .form-group select option { background: var(--branco); color: var(--texto); }
 
-/* Botões secundários */
 [data-theme="dark"] .btn-secondary { background: rgba(255, 255, 255, 0.05); border-color: var(--cinza-borda); color: var(--texto); }
 [data-theme="dark"] .btn-secondary:hover { background: rgba(232, 119, 34, 0.12); border-color: var(--cde-laranja); color: var(--cde-laranja); }
 
-/* Tabelas */
 [data-theme="dark"] .analytics-table th { background: var(--card-bg-subtle); color: var(--texto-soft); border-color: var(--cinza-borda); }
 [data-theme="dark"] .analytics-table td { border-color: var(--cinza-borda); color: var(--texto); }
 [data-theme="dark"] .analytics-table tr:hover { background: rgba(232, 119, 34, 0.06); }
 
-/* Tree modules */
 [data-theme="dark"] .tree-module-header { background: var(--card-bg-subtle); border-color: var(--cinza-borda); }
 [data-theme="dark"] .tree-lesson { border-color: var(--cinza-borda); }
 [data-theme="dark"] .tree-lesson .icon-box { background: rgba(255, 255, 255, 0.05); }
 
-/* Editor de quiz */
 [data-theme="dark"] .quiz-option-row input[type="text"] {
   background: rgba(255, 255, 255, 0.04);
   border-color: var(--cinza-borda);
@@ -664,144 +695,20 @@ input, select, textarea { font-family: inherit; }
   color: var(--texto);
 }
 
-/* Certificate */
 [data-theme="dark"] .certificate-preview {
   background: linear-gradient(135deg, rgba(232, 119, 34, 0.12), rgba(200, 16, 46, 0.06));
 }
-
-/* Overlay view */
 [data-theme="dark"] .overlay-view { background: var(--cinza-bg); }
-
-/* Redirect card */
 [data-theme="dark"] #redirect-view .redirect-card { background: var(--branco); color: var(--texto); }
 [data-theme="dark"] #redirect-view .redirect-card h2 { color: var(--texto); }
-
-/* Hero banner mais escuro no dark */
 [data-theme="dark"] .hero-banner {
   background: linear-gradient(135deg, #1E0B4C 0%, #3D0F73 55%, #5B21B6 100%);
 }
-
-/* Enroll list */
 [data-theme="dark"] #enroll-list > div { border-color: var(--cinza-borda); }
 
-/* Mensagens */
 [data-theme="dark"] .msg.error { background: rgba(200, 16, 46, 0.2); color: #F5B5C0; }
 [data-theme="dark"] .msg.success { background: rgba(21, 138, 73, 0.2); color: #86E0AF; }
 [data-theme="dark"] .msg.info { background: rgba(37, 99, 235, 0.2); color: #A8C5FF; }
 
-/* Ícone do toggle girando */
 #theme-icon { display: inline-block; transition: transform 0.3s ease; }
 #theme-toggle:hover #theme-icon { transform: rotate(20deg); }
-
-/* ===================== OVERRIDE FINAL (anti-forced-dark) ===================== */
-/* Garante que QUALQUER elemento com background:#fff inline seja escuro no dark */
-[data-theme="dark"] [style*="background:#fff"],
-[data-theme="dark"] [style*="background: #fff"] {
-  background-color: var(--branco) !important;
-}
-
-[data-theme="dark"] [style*="background:#FAFAFC"],
-[data-theme="dark"] [style*="background: #FAFAFC"],
-[data-theme="dark"] [style*="background:#fafafc"],
-[data-theme="dark"] [style*="background: #fafafc"] {
-  background-color: var(--card-bg-subtle) !important;
-}
-
-/* Filtra também por rgb branco inline */
-[data-theme="dark"] [style*="background: rgb(255, 255, 255)"],
-[data-theme="dark"] [style*="background:rgb(255,255,255)"],
-[data-theme="dark"] [style*="background-color: #fff"],
-[data-theme="dark"] [style*="background-color: white"] {
-  background-color: var(--branco) !important;
-}
-
-/* Força cores de texto em elementos com color inline branco/preto */
-[data-theme="dark"] [style*="color:#414042"],
-[data-theme="dark"] [style*="color: #414042"],
-[data-theme="dark"] [style*="color:#1F1F2E"],
-[data-theme="dark"] [style*="color: #1F1F2E"] {
-  color: var(--texto) !important;
-}
-
-[data-theme="dark"] [style*="color:#6D6E71"],
-[data-theme="dark"] [style*="color: #6D6E71"] {
-  color: var(--texto-soft) !important;
-}
-
-/* Mantém os cards brancos claros quando o "papel" pede (certificado) */
-[data-theme="dark"] .certificate-preview * {
-  color-scheme: only light;
-}
-
-/* Correção específica do Analytics */
-[data-theme="dark"] .analytics-table th {
-  background: var(--card-bg-subtle) !important;
-  color: var(--texto-soft) !important;
-}
-[data-theme="dark"] .analytics-table td {
-  color: var(--texto) !important;
-}
-
-/* Correção do "Por curso" e cards brancos do Analytics gerados via JS */
-[data-theme="dark"] #main-content > div[style*="background"],
-[data-theme="dark"] #main-content > div > div[style*="background"] {
-  color: var(--texto);
-
-  /* ===================== AVATAR CLICÁVEL ===================== */
-.sidebar-avatar {
-  cursor: pointer;
-  position: relative;
-  transition: transform 0.2s;
-  background-size: cover !important;
-  background-position: center !important;
-}
-
-.sidebar-avatar:hover {
-  transform: scale(1.05);
-}
-
-.sidebar-avatar::after {
-  content: "📷";
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.6rem;
-  opacity: 0;
-  transition: opacity 0.2s;
-  color: #fff;
-}
-
-.sidebar-avatar:hover::after {
-  opacity: 1;
-}
-
-.topbar-avatar {
-  cursor: pointer;
-  background-size: cover !important;
-  background-position: center !important;
-  transition: transform 0.15s;
-}
-
-.topbar-avatar:hover {
-  transform: scale(1.08);
-}
-
-/* ===================== CARGO/FUNÇÃO DO USUÁRIO ===================== */
-.sidebar-user-position {
-  font-size: 0.78rem;
-  color: var(--texto-soft);
-  font-weight: 500;
-  line-height: 1.3;
-  margin-bottom: 6px;
-  margin-top: 4px;
-  font-style: italic;
-}
-
-.sidebar-user-position:empty {
-  display: none;
-}
-}
