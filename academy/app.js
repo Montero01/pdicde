@@ -1,7 +1,7 @@
 // ==================== CONFIG ====================
 const SUPABASE_URL = 'https://whjyvphamkbjcrdzhzoc.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_EyZgqDQTSV-M-O3_l63V7Q_LFcFDl69';
-const PDI_URL = 'https://pdi.casadosespelhos.com.br';  // ajuste se necessário
+const PDI_URL = 'https://montero01.github.io/pdicde/';  // ajuste se necessário
 const BUCKET = 'academy';
 
 const { createClient } = supabase;
