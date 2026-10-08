@@ -505,3 +505,83 @@ button[disabled] { cursor: not-allowed !important; opacity: 0.55; }
 .topbar-avatar:hover {
   transform: scale(1.08);
 }
+
+/* ===================== AVATAR NO HEADER ===================== */
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.header-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--gradiente-marca);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  background-size: cover !important;
+  background-position: center !important;
+  border: 3px solid #fff;
+  outline: 2px solid var(--cde-laranja);
+  box-shadow: 0 6px 16px rgba(200,16,46,0.2);
+  transition: transform 0.2s;
+}
+
+.header-avatar:hover {
+  transform: scale(1.05);
+}
+
+.header-avatar::after {
+  content: "📷";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+  color: #fff;
+}
+
+.header-avatar:hover::after {
+  opacity: 1;
+}
+
+/* Cargo/função abaixo do nome no header */
+.header-position {
+  font-size: 0.82rem;
+  color: var(--cde-grafite-claro);
+  font-style: italic;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.header-position:empty {
+  display: none;
+}
+
+/* Responsivo — avatar menor no mobile */
+@media (max-width: 600px) {
+  .header-user {
+    gap: 12px;
+  }
+  .header-avatar {
+    width: 52px;
+    height: 52px;
+    font-size: 1.15rem;
+  }
+}
