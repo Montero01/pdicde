@@ -33,6 +33,9 @@ let cachedAllGoals = [];
 let currentSectorFilter = 'all';
 let isManagement = false, isDiretor = false, isSupervisor = false, isMaster = false, canManageAll = false;
 
+// Avatar
+let selectedAvatarFile = null;
+
 const SECTORS = [
   { key: 'COMERCIAL', label: 'Comercial', cls: 'comercial' },
   { key: 'PRODUCAO', label: 'Produção', cls: 'producao' },
@@ -45,6 +48,15 @@ function showMessage(text, type = 'success') {
   box.innerHTML = `<div class="msg ${type}">${text}</div>`;
   setTimeout(() => box.innerHTML = '', 5000);
 }
+
+// ⭐ NOVA FUNÇÃO — extrai as iniciais do nome
+function initials(name) {
+  if (!name) return 'CD';
+  const parts = String(name).trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return '—';
   const d = new Date(dateStr + (dateStr.length === 10 ? 'T00:00:00' : ''));
@@ -152,6 +164,11 @@ async function loadUser() {
 
     document.getElementById('mgmt-user-info').innerHTML = `${escapeHtml(profile.full_name)} ${getRoleBadge(profile.role, isMaster)} ${(isSupervisor || profile.sector) ? getSectorBadge(profile.sector) : ''}`;
 
+    // ⭐ NOVO — Preenche o cargo e aplica o avatar na gestão
+    const mgmtPos = document.getElementById('mgmt-position');
+    if (mgmtPos) mgmtPos.textContent = profile.position || '';
+    applyAvatarToUI(profile.full_name || user.email, profile.avatar_url || null);
+
     const noticeEl = document.getElementById('director-notice');
     if (canManageAll) {
       document.getElementById('director-notice-role').textContent = isMaster ? 'Master' : 'Diretoria';
@@ -190,6 +207,12 @@ async function loadUser() {
     document.getElementById('employee-view').classList.remove('hidden');
     document.getElementById('management-view').classList.add('hidden');
     document.getElementById('emp-user-info').innerHTML = `${escapeHtml(profile.full_name)} (Colaborador) ${getSectorBadge(profile.sector)}`;
+
+    // Preenche o cargo e aplica o avatar no colaborador
+    const empPos = document.getElementById('emp-position');
+    if (empPos) empPos.textContent = profile.position || '';
+    applyAvatarToUI(profile.full_name || user.email, profile.avatar_url || null);
+
     loadEmployeeData();
   }
 }
@@ -669,15 +692,7 @@ async function validateCert(certId, status, manualPoints = null) {
   loadValidatedCertificates();
 }
 
-// ==================== INIT ====================
-
-// ===================== AVATAR DE PERFIL =====================
-let selectedAvatarFile = null;
-
-/**
- * Abre o modal de avatar.
- * Pode ser chamado clicando no avatar da sidebar ou da topbar.
- */
+// ==================== AVATAR DE PERFIL ====================
 function openAvatarModal() {
   if (!currentUser || !currentProfile) return;
 
@@ -686,7 +701,6 @@ function openAvatarModal() {
   document.getElementById('avatar-file-name').textContent = '';
   document.getElementById('avatar-save-btn').disabled = true;
 
-  // Preview inicial — mostra o avatar atual ou as iniciais
   const preview = document.getElementById('avatar-preview');
   if (currentProfile.avatar_url) {
     preview.style.backgroundImage = `url('${currentProfile.avatar_url}')`;
@@ -704,21 +718,16 @@ function closeAvatarModal() {
   selectedAvatarFile = null;
 }
 
-/**
- * Quando o usuário escolhe o arquivo, valida e mostra preview.
- */
 function onAvatarFileSelected(event) {
   const file = event.target.files[0];
   if (!file) return;
 
-  // Valida tamanho (5MB)
   if (file.size > 5 * 1024 * 1024) {
     showMessage('Imagem muito grande. Máximo 5MB.', 'error');
     event.target.value = '';
     return;
   }
 
-  // Valida tipo
   const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
   if (!validTypes.includes(file.type)) {
     showMessage('Formato inválido. Use JPG, PNG ou WEBP.', 'error');
@@ -730,7 +739,6 @@ function onAvatarFileSelected(event) {
   document.getElementById('avatar-file-name').textContent = '✓ ' + file.name;
   document.getElementById('avatar-save-btn').disabled = false;
 
-  // Preview usando FileReader
   const reader = new FileReader();
   reader.onload = (e) => {
     const preview = document.getElementById('avatar-preview');
@@ -740,9 +748,6 @@ function onAvatarFileSelected(event) {
   reader.readAsDataURL(file);
 }
 
-/**
- * Faz o upload da foto e salva no banco.
- */
 async function saveAvatar() {
   if (!selectedAvatarFile) return;
 
@@ -752,10 +757,8 @@ async function saveAvatar() {
 
   try {
     const ext = selectedAvatarFile.name.split('.').pop().toLowerCase();
-    // ⚠️ O nome da pasta PRECISA ser o user_id por causa da policy do Storage
     const filePath = `${currentUser.id}/avatar.${ext}`;
 
-    // 1) Upload pro Supabase Storage (upsert substitui se já existir)
     const { error: upErr } = await db.storage
       .from('avatars')
       .upload(filePath, selectedAvatarFile, {
@@ -766,11 +769,9 @@ async function saveAvatar() {
 
     if (upErr) throw upErr;
 
-    // 2) Pega a URL pública e adiciona timestamp para evitar cache
     const { data: pub } = db.storage.from('avatars').getPublicUrl(filePath);
     const publicUrl = pub.publicUrl + '?t=' + Date.now();
 
-    // 3) Salva no perfil do usuário
     const { error: dbErr } = await db
       .from('profiles')
       .update({ avatar_url: publicUrl })
@@ -778,7 +779,6 @@ async function saveAvatar() {
 
     if (dbErr) throw dbErr;
 
-    // 4) Atualiza o estado local e a UI
     currentProfile.avatar_url = publicUrl;
     applyAvatarToUI(currentProfile.full_name || currentUser.email, publicUrl);
 
@@ -794,14 +794,15 @@ async function saveAvatar() {
 }
 
 /**
- * Aplica a foto (ou iniciais) nos avatares da sidebar e topbar.
+ * Aplica avatar + iniciais nos avatares do PDI.
+ * Atualiza os dois avatares (colaborador e gestão) de uma vez.
  */
 function applyAvatarToUI(name, url) {
-  const sidebarAvatar = document.getElementById('user-avatar');
-  const topbarAvatar = document.getElementById('topbar-avatar');
   const ini = initials(name);
+  const avatars = ['emp-avatar', 'mgmt-avatar'];
 
-  [sidebarAvatar, topbarAvatar].forEach(el => {
+  avatars.forEach(id => {
+    const el = document.getElementById(id);
     if (!el) return;
     if (url) {
       el.style.backgroundImage = `url('${url}')`;
@@ -812,5 +813,9 @@ function applyAvatarToUI(name, url) {
     }
   });
 }
-db.auth.onAuthStateChange((event, session) => { if (event === 'SIGNED_IN' && session) loadUser(); });
+
+// ==================== INIT ====================
+db.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_IN' && session) loadUser();
+});
 loadUser();
