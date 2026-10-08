@@ -11,14 +11,13 @@
       document.documentElement.setAttribute('data-theme', 'dark');
     }
   })();
-</script>
+  </script>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
-<!-- MENSAGENS -->
 <div id="message-box"></div>
 
 <!-- SPLASH -->
@@ -40,9 +39,10 @@
 
 <!-- APP -->
 <div id="app-view" class="hidden">
-  <div class="bar-overlay" id="bar-overlay" onclick="togglebar()"></div>
 
-  <a class="sidebar" id="sidebar">
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
       <img src="https://casadosespelhos.com.br/wp-content/uploads/2018/05/marca_cde_cores_horizontal_tag_bl-2048x713.png" alt="CDE">
     </div>
@@ -57,7 +57,7 @@
       <button class="nav-item active" data-view="home" onclick="switchView('home')">
         <span class="nav-icon">🏠</span><span>Página Inicial</span>
       </button>
-       <button class="nav-item" data-view="empresa" onclick="switchView('empresa')">
+      <button class="nav-item" data-view="empresa" onclick="switchView('empresa')">
         <span class="nav-icon">🏢</span><span>Nossa Empresa</span>
       </button>
       <button class="nav-item" data-view="mycourses" onclick="switchView('mycourses')">
@@ -96,8 +96,8 @@
       <div class="topbar-points" id="topbar-points" title="Pontos acumulados no PDI">0 pts</div>
       <div class="topbar-icons">
         <button class="icon-btn" id="theme-toggle" onclick="toggleTheme()" title="Alternar tema">
-  <span id="theme-icon">🌙</span>
-</button>
+          <span id="theme-icon">🌙</span>
+        </button>
         <button class="icon-btn hide-mobile" title="Segurança">🛡️</button>
         <button class="icon-btn hide-mobile" title="Favoritos">⭐</button>
         <button class="icon-btn hide-mobile" title="Mensagens">✉️</button>
@@ -106,7 +106,7 @@
     </header>
     <main class="main-content" id="main-content"></main>
     <footer class="main-footer">
-      Sistema desenvolvido <span class="footer-dev">para</span> 
+      Sistema desenvolvido <span class="footer-dev">para</span>
       <span class="footer-brand">CDE Blindex AM</span> · 2026
     </footer>
   </div>
@@ -370,7 +370,7 @@
   </div>
 </div>
 
-<!-- ===================== MODAL DE AVATAR ===================== -->
+<!-- MODAL DE AVATAR -->
 <div id="avatar-modal" class="modal-overlay hidden">
   <div class="modal-box" style="max-width: 480px;">
     <h3>📷 Alterar Foto de Perfil</h3>
@@ -395,7 +395,7 @@
     </div>
   </div>
 </div>
-  
+
 <script src="app.js"></script>
 </body>
 </html>
