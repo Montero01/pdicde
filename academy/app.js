@@ -975,7 +975,43 @@ function drawBlindexVector(doc, x, y, size) {
 }
 
 // ==================== CERTIFICADO ====================
-// ==================== HELPER: DESENHA LOGO BLINDEX VETORIAL ====================
+// ==================== HELPER: CARREGA IMAGEM COMO DATA URL ====================
+async function imageToDataURL(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || 400;
+        canvas.height = img.naturalHeight || 400;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      } catch (e) { reject(e); }
+    };
+    img.onerror = () => reject(new Error('Falha ao carregar imagem'));
+    img.src = url;
+  });
+}
+
+// ==================== HELPER: CARREGA COM PROXY FALLBACK ====================
+async function loadImageWithFallback(primaryUrl, proxyUrl) {
+  try {
+    return await imageToDataURL(primaryUrl);
+  } catch (e) {
+    if (proxyUrl) {
+      try {
+        return await imageToDataURL(proxyUrl);
+      } catch (e2) {
+        return null;
+      }
+    }
+    return null;
+  }
+}
+
+// ==================== HELPER: LOGO BLINDEX VETORIAL ====================
 function drawBlindexVector(doc, x, y, size) {
   const RED = [230, 30, 37];
   const WHITE = [255, 255, 255];
@@ -984,17 +1020,17 @@ function drawBlindexVector(doc, x, y, size) {
   doc.setFillColor(...RED);
   doc.rect(x, y, size, size, 'F');
 
-  // Texto "BLINDEX" rotacionado 45° — tamanho proporcional
+  // Texto "BLINDEX" rotacionado 45° — maior
   doc.saveGraphicsState();
   doc.setTextColor(...WHITE);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(size * 0.32);   // ~7pt para quadrado de 22mm
+  doc.setFontSize(size * 0.42);   // 👈 aumentado de 0.32 para 0.42
   const cx = x + size / 2;
-  const cy = y + size / 2 + size * 0.05;  // compensa baseline
+  const cy = y + size / 2 + size * 0.06;
   doc.text('BLINDEX', cx, cy, { align: 'center', angle: 45 });
 
   // ® no canto superior direito
-  doc.setFontSize(size * 0.12);
+  doc.setFontSize(size * 0.14);
   doc.text('®', x + size * 0.82, y + size * 0.22, { align: 'center' });
   doc.restoreGraphicsState();
 }
@@ -1018,14 +1054,11 @@ async function downloadCertificate() {
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, W, H, 'F');
 
-  // ===================== CARREGA LOGO CDE =====================
-  let logoDataUrl = null;
-  try {
-    const logoUrl = 'https://casadosespelhos.com.br/wp-content/uploads/2018/05/marca_cde_cores_horizontal_tag_bl-2048x713.png';
-    logoDataUrl = await fetchImageAsDataURL(logoUrl);
-  } catch (e) {
-    console.warn('Logo CDE não carregou, usando fallback de texto.');
-  }
+  // ===================== CARREGA LOGO CDE (com proxy fallback) =====================
+  const logoCdeUrl = 'https://casadosespelhos.com.br/wp-content/uploads/2018/05/marca_cde_cores_horizontal_tag_bl-2048x713.png';
+  const logoCdeProxy = 'https://images.weserv.nl/?url=' + encodeURIComponent('casadosespelhos.com.br/wp-content/uploads/2018/05/marca_cde_cores_horizontal_tag_bl-2048x713.png');
+
+  const logoDataUrl = await loadImageWithFallback(logoCdeUrl, logoCdeProxy);
 
   // ===================== MARCA D'ÁGUA =====================
   if (logoDataUrl) {
@@ -1058,7 +1091,7 @@ async function downloadCertificate() {
     const logoH = logoW * (713 / 2048);
     doc.addImage(logoDataUrl, 'PNG', (W - logoW) / 2, 19, logoW, logoH);
   } else {
-    // Fallback de texto
+    // Último recurso: texto
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(22);
     doc.setTextColor(...GRAFITE);
@@ -1075,7 +1108,7 @@ async function downloadCertificate() {
   doc.setTextColor(...CINZA);
   doc.text('C D E   A C A D E M Y', W / 2, 60, { align: 'center' });
 
-  // ===================== TÍTULO (SEM LINHA EMBAIXO) =====================
+  // ===================== TÍTULO =====================
   doc.setFontSize(28);
   doc.setTextColor(...VERMELHO);
   doc.text('CERTIFICADO', W / 2, 73, { align: 'center' });
@@ -1091,14 +1124,14 @@ async function downloadCertificate() {
   doc.setTextColor(...GRAFITE);
   doc.text('Certificamos que', W / 2, 94, { align: 'center' });
 
-  // Nome do aluno
+  // Nome
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
   doc.setTextColor(...GRAFITE);
   const nome = currentProfile.full_name || currentUser.email;
   doc.text(nome, W / 2, 106, { align: 'center' });
 
-  // Cargo + Setor (se existirem)
+  // Cargo + Setor
   const cargo = currentProfile.position || '';
   const setor = currentProfile.sector || '';
   const partes = [];
@@ -1112,7 +1145,7 @@ async function downloadCertificate() {
     doc.text(partes.join('  •  '), W / 2, 113, { align: 'center' });
   }
 
-  // "concluiu com êxito"
+  // Concluiu...
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
   doc.setTextColor(...GRAFITE);
@@ -1125,7 +1158,7 @@ async function downloadCertificate() {
   const courseTitle = course.title.length > 70 ? course.title.substring(0, 67) + '...' : course.title;
   doc.text(courseTitle, W / 2, 134, { align: 'center' });
 
-  // ===================== PARÁGRAFO PADRÃO =====================
+  // Parágrafo padrão
   const dateStr = new Date(completion.completed_at).toLocaleDateString('pt-BR');
   const hours = course.workload_hours || 1;
 
@@ -1137,31 +1170,26 @@ async function downloadCertificate() {
   doc.text('na modalidade ONLINE, no período de ' + dateStr + ',', W / 2, 150, { align: 'center' });
   doc.text('com carga horária total de ' + hours + ' horas.', W / 2, 156, { align: 'center' });
 
-  // ===================== ID ÚNICO DO CERTIFICADO =====================
+  // ID único
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(...VERMELHO);
   doc.text('Certificado nº: ' + completion.certificate_code, W / 2, 168, { align: 'center' });
 
-  // ===================== ASSINATURA =====================
+  // ===================== ASSINATURA (APENAS A LINHA) =====================
   const sigY = 180;
 
-  // Linha em branco (para assinatura à mão)
   doc.setDrawColor(...GRAFITE);
   doc.setLineWidth(0.4);
   doc.line(W / 2 - 55, sigY, W / 2 + 55, sigY);
 
-  // Legenda abaixo da linha
+  // Empresa / CNPJ (substitui a antiga "Assinatura da Diretora")
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setTextColor(...CINZA);
-  doc.text('Assinatura da Diretora', W / 2, sigY + 5, { align: 'center' });
-
-  // ===================== EMPRESA / CNPJ =====================
-  doc.setFontSize(7);
+  doc.text('K K KRAUSS ARAUJO INDUSTRIA E COMERCIO DE VIDROS LTDA - ME', W / 2, sigY + 6, { align: 'center' });
   doc.setTextColor(...CINZA_CLARO);
-  doc.text('K K KRAUSS ARAUJO INDUSTRIA E COMERCIO DE VIDROS LTDA - ME', W / 2, sigY + 11, { align: 'center' });
-  doc.text('CDE Indústria de Vidros  •  CNPJ 84.544.246/0001-14', W / 2, sigY + 15, { align: 'center' });
+  doc.text('CDE Indústria de Vidros  •  CNPJ 84.544.246/0001-14', W / 2, sigY + 10, { align: 'center' });
 
   // ===================== QR CODE (CANTO INFERIOR ESQUERDO) =====================
   try {
@@ -1173,10 +1201,10 @@ async function downloadCertificate() {
       'Data: ' + dateStr
     ].join(' | ');
     const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=0&data=' + encodeURIComponent(qrContent);
-    const qrDataUrl = await fetchImageAsDataURL(qrUrl);
+    const qrDataUrl = await imageToDataURL(qrUrl);
     if (qrDataUrl) {
-      const qrSize = 22;
-      const qrX = 30;
+      const qrSize = 24;
+      const qrX = 28;
       const qrY = H - 52;
       doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
       doc.setFontSize(6);
@@ -1187,17 +1215,12 @@ async function downloadCertificate() {
     console.warn('QR Code não pôde ser gerado.');
   }
 
-  // ===================== LOGO BLINDEX VETORIAL (CANTO INFERIOR DIREITO) =====================
-  const blindexSize = 22;
-  const blindexX = W - 30 - blindexSize;
+  // ===================== LOGO BLINDEX (CANTO INFERIOR DIREITO) =====================
+  const blindexSize = 24;   // 👈 mesmo tamanho do QR Code
+  const blindexX = W - 28 - blindexSize;
   const blindexY = H - 52;
 
   drawBlindexVector(doc, blindexX, blindexY, blindexSize);
-
-  doc.setFontSize(6);
-  doc.setTextColor(...CINZA_CLARO);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Marca licenciada', blindexX + blindexSize / 2, blindexY + blindexSize + 3, { align: 'center' });
 
   // ===================== SALVAR =====================
   const safeTitle = course.title.replace(/[^a-zA-Z0-9]/g, '_');
@@ -1206,7 +1229,6 @@ async function downloadCertificate() {
   doc.save(fn);
   showMessage('Certificado gerado! 📥', 'success');
 }
-
 // ==================== PAINEL DE GESTÃO ====================
 function renderManageCourses() {
   const courses = allCourses;
