@@ -469,6 +469,86 @@ function renderReport() {
           </div>`).join('')}
     </div>`;
 }
+
+// ==================== NOSSA EMPRESA ====================
+function renderEmpresa() {
+  const IMG_1 = 'https://casadosespelhos.com.br/wp-content/uploads/2020/03/WhatsApp-Image-2025-09-03-at-20.22.26.jpeg';
+  const IMG_2 = 'https://casadosespelhos.com.br/wp-content/uploads/2020/03/WhatsApp-Image-2025-09-03-at-20.22.25.jpeg';
+
+  return `
+    <section class="hero-banner" style="min-height:200px;">
+      <div class="hero-content">
+        <span class="hero-tag">🏢 Sobre nós</span>
+        <h1>Nossa Empresa</h1>
+        <p>Conheça um pouco da história, dos valores e da trajetória da CDE Blindex AM.</p>
+      </div>
+    </section>
+
+    <div class="section-header">
+      <h2>Nossa História</h2>
+      <span class="section-sub">Conheça nossa diretora Kilze Krauss</span>
+    </div>
+
+    <div style="background: var(--branco); border-radius:14px; padding:26px; border:1px solid var(--cinza-borda); box-shadow: var(--sombra-sm); margin-bottom:26px;">
+      <p style="font-size:0.95rem; color:var(--texto-soft); line-height:1.75; margin-bottom:16px;">
+        Sua trajetória se confunde com a própria história da CDE Blindex®, que completa quase 50 anos de mercado e se consolidou como referência em soluções de vidros modernos para a região.
+      </p>
+      <p style="font-size:0.95rem; color:var(--texto-soft); line-height:1.75; margin-bottom:16px;">
+        Kilze ocupa um lugar singular: é a única mulher no comando de uma linha de têmpera de vidros no estado do Amazonas, o que a torna não apenas uma gestora de destaque, mas também uma referência para outras mulheres que sonham em ocupar espaços de liderança em setores tradicionalmente masculinos. Sua atuação firme, visionária e inspiradora mostra que competência e sensibilidade podem caminhar juntas na construção de resultados sólidos.
+      </p>
+      <p style="font-size:0.95rem; color:var(--texto-soft); line-height:1.75;">
+        Durante seus mais de 10 anos de liderança, Kilze Krauss foi responsável por transformar a CDE Blindex® em um verdadeiro polo de excelência. Uma de suas principais conquistas foi a associação da empresa à marca Blindex®, líder mundial em soluções em vidros de segurança e design, o que elevou ainda mais o padrão de qualidade e credibilidade da companhia perante clientes e parceiros. Além disso, investiu fortemente em marketing, comunicação e educação do mercado, posicionando a CDE Blindex® como uma empresa próxima, transparente e comprometida com a inovação.
+      </p>
+    </div>
+
+    <div class="section-header">
+      <h2>Nossa Trajetória em Imagens</h2>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:18px; margin-bottom:26px;">
+      <figure style="background: var(--branco); border-radius:14px; overflow:hidden; border:1px solid var(--cinza-borda); box-shadow:var(--sombra-sm);">
+        <img src="${IMG_1}" alt="Marca CDE" style="width:100%; height:240px; object-fit:cover; display:block; background: var(--branco);">
+        <figcaption style="padding:14px 16px; font-size:0.85rem; color:var(--texto-soft); font-weight:600;">
+          À frente da CDE Blindex® há mais de uma década, Kilze Krauss tem conduzido a empresa por um caminho de inovação, qualidade e liderança no setor de vidros no Amazonas.
+        </figcaption>
+      </figure>
+
+      <figure style="background: var(--branco); border-radius:14px; overflow:hidden; border:1px solid var(--cinza-borda); box-shadow:var(--sombra-sm);">
+        <img src="${IMG_2}" alt="Nossa equipe" style="width:100%; height:240px; object-fit:cover; display:block;">
+        <figcaption style="padding:14px 16px; font-size:0.85rem; color:var(--texto-soft); font-weight:600;">
+          Kilze acredita que o maior patrimônio da CDE Blindex® são as pessoas. Por isso, dedica atenção especial à valorização da equipe, investindo em treinamentos, integração e no desenvolvimento contínuo de seus colaboradores. Para ela, qualidade começa dentro de casa, com profissionais motivados, engajados e orgulhosos de fazer parte da história da empresa. Essa visão humanizada é um dos diferenciais de sua gestão e uma das razões pelas quais a CDE Blindex® mantém uma posição de destaque no mercado.
+        </figcaption>
+      </figure>
+    </div>
+
+    <div class="section-header">
+      <h2>Nossos Valores</h2>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px;">
+      ${renderValoresCards()}
+    </div>
+  `;
+}
+
+function renderValoresCards() {
+  const valores = [
+    { emoji: '🤝', titulo: 'Missão',      desc: 'Fabricar vidros BLINDEX® com qualidade, proporcionando segurança às pessoas.' },
+    { emoji: '🎯', titulo: 'Visão',       desc: 'Ser referência em vidros de qualidade no AMAZONAS' },
+    { emoji: '🌱', titulo: 'Valores',     desc: 'Excelência e Qualidade | Respeito aos clientes, parceiros e colaboradores | Integridade | Segurança.' }
+  ];
+  let html = '';
+  for (const v of valores) {
+    html += '<div style="background: var(--branco); border-radius:14px; padding:20px; border:1px solid var(--cinza-borda); box-shadow:var(--sombra-sm);">';
+    html += '<div style="font-size:1.8rem; margin-bottom:8px;">' + v.emoji + '</div>';
+    html += '<div style="font-weight:800; font-size:0.95rem; margin-bottom:6px;">' + v.titulo + '</div>';
+    html += '<div style="font-size:0.82rem; color:var(--texto-soft); line-height:1.5;">' + v.desc + '</div>';
+    html += '</div>';
+  }
+  return html;
+}
+
+// ==================== HELPERS DE RENDER ====================
 function renderEmpty(emoji, msg) { return `<div class="state-box"><span class="emoji">${emoji}</span>${escapeHtml(msg)}</div>`; }
 function filterCourses(list) {
   if (!searchTerm) return list;
@@ -653,7 +733,7 @@ async function renderLessonInPlayer() {
     contentHtml = `
       <div class="content-viewer" style="background: #000; padding: 0;">
         <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px;">
-          <iframe src="${escapeHtml(embedUrl)}" 
+          <iframe src="${escapeHtml(embedUrl)}"
                   style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowfullscreen></iframe>
@@ -853,33 +933,26 @@ async function downloadCertificate() {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const W = 297, H = 210;
 
-  // ===================== FUNDO =====================
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, W, H, 'F');
 
-  // Faixas decorativas (topo e base) — laranja + vermelho CDE
   doc.setFillColor(232, 119, 34); doc.rect(0, 0, W / 2, 8, 'F');
   doc.setFillColor(200, 16, 46); doc.rect(W / 2, 0, W / 2, 8, 'F');
   doc.setFillColor(232, 119, 34); doc.rect(0, H - 8, W / 2, 8, 'F');
   doc.setFillColor(200, 16, 46); doc.rect(W / 2, H - 8, W / 2, 8, 'F');
 
-  // Bordas duplas
   doc.setDrawColor(232, 119, 34); doc.setLineWidth(0.8);
   doc.rect(12, 12, W - 24, H - 24);
   doc.setDrawColor(200, 16, 46); doc.setLineWidth(0.3);
   doc.rect(14, 14, W - 28, H - 28);
 
-  // ===================== LOGO CDE CENTRALIZADA =====================
   try {
     const logoUrl = 'https://casadosespelhos.com.br/wp-content/uploads/2018/05/marca_cde_cores_horizontal_tag_bl-2048x713.png';
     const dataUrl = await fetchImageAsDataURL(logoUrl);
-    // Logo centralizada: largura 80mm, altura proporcional (~28mm)
-    // Original: 2048x713 → ratio ~2.87 → 80mm de largura = ~27.9mm de altura
     const logoW = 80;
-    const logoH = logoW * (713 / 2048); // ≈ 27.85mm
+    const logoH = logoW * (713 / 2048);
     doc.addImage(dataUrl, 'PNG', (W - logoW) / 2, 20, logoW, logoH);
   } catch (e) {
-    // Fallback se a imagem falhar em carregar
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(22);
     doc.setTextColor(65, 64, 66);
@@ -890,84 +963,68 @@ async function downloadCertificate() {
     doc.text('desde 1978', W / 2, 40, { align: 'center' });
   }
 
-  // ===================== TÍTULOS =====================
-  // Etiqueta "CDE ACADEMY"
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(109, 110, 113);
   doc.text('CDE ACADEMY', W / 2, 60, { align: 'center' });
 
-  // Título principal
   doc.setFontSize(30);
   doc.setTextColor(200, 16, 46);
   doc.text('CERTIFICADO DE CONCLUSÃO', W / 2, 76, { align: 'center' });
 
-  // Linha decorativa
   doc.setDrawColor(232, 119, 34);
   doc.setLineWidth(0.6);
   doc.line(W / 2 - 40, 81, W / 2 + 40, 81);
 
-  // ===================== CORPO =====================
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(12);
   doc.setTextColor(65, 64, 66);
   doc.text('Certificamos que', W / 2, 98, { align: 'center' });
 
-  // Nome do aluno em destaque
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(26);
   const nome = currentProfile.full_name || currentUser.email;
   doc.text(nome, W / 2, 114, { align: 'center' });
 
-  // Linha embaixo do nome
   const nameWidth = doc.getTextWidth(nome);
   doc.setDrawColor(232, 119, 34);
   doc.setLineWidth(0.3);
   doc.line(W / 2 - Math.max(nameWidth / 2 + 5, 50), 117, W / 2 + Math.max(nameWidth / 2 + 5, 50), 117);
 
-  // Texto "concluiu com êxito"
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(12);
   doc.text('concluiu com êxito o curso', W / 2, 128, { align: 'center' });
 
-  // Título do curso
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
   doc.setTextColor(232, 119, 34);
   const courseTitle = course.title.length > 70 ? course.title.substring(0, 67) + '...' : course.title;
   doc.text(courseTitle, W / 2, 140, { align: 'center' });
 
-  // Carga horária + data
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
   doc.setTextColor(109, 110, 113);
   const dateStr = new Date(completion.completed_at).toLocaleDateString('pt-BR');
   doc.text(`Carga horária: ${course.workload_hours || 1} hora(s)  •  Concluído em ${dateStr}`, W / 2, 150, { align: 'center' });
 
-  // Código único de verificação
   doc.setFontSize(8);
   doc.setTextColor(140, 140, 140);
   doc.text(`Código de verificação: ${completion.certificate_code}`, W / 2, 158, { align: 'center' });
 
-  // ===================== ASSINATURA =====================
-  // Linha de assinatura
   doc.setDrawColor(65, 64, 66);
   doc.setLineWidth(0.4);
   doc.line(W / 2 - 65, 180, W / 2 + 65, 180);
 
-  // Nome da assinatura (grande, estilo serifado)
   doc.setFont('times', 'bold');
   doc.setFontSize(15);
   doc.setTextColor(65, 64, 66);
   doc.text('CDE Blindex ® — Casa dos Espelhos', W / 2, 188, { align: 'center' });
 
-  // Sublinhado institucional
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(109, 110, 113);
   doc.text('Diretoria / Recursos Humanos  •  desde 1978', W / 2, 193, { align: 'center' });
 
-  // ===================== SALVAR =====================
   const fn = `Certificado_${course.title.replace(/[^a-zA-Z0-9]/g, '_')}_${nome.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
   doc.save(fn);
   showMessage('Certificado gerado! 📥', 'success');
@@ -1483,7 +1540,6 @@ async function loadEnrollUserSelect() {
       return;
     }
 
-    // Filtra client-side (à prova de case-sensitive e roles customizadas)
     const allowedRoles = ['employee', 'colaborador', 'supervisor'];
     const filtered = (data || []).filter(p =>
       allowedRoles.includes((p.role || '').toLowerCase())
@@ -1508,7 +1564,6 @@ async function loadEnrollList() {
   container.innerHTML = 'Carregando…';
 
   try {
-    // 1) Busca as matrículas
     const { data: enrolls, error } = await db
       .from('academy_enrollments')
       .select('*')
@@ -1522,7 +1577,6 @@ async function loadEnrollList() {
       return;
     }
 
-    // 2) Busca os perfis separadamente (porque a FK é para auth.users, não profiles)
     const userIds = list.map(e => e.user_id);
     const { data: profiles } = await db
       .from('profiles')
@@ -1532,7 +1586,6 @@ async function loadEnrollList() {
     const profileMap = {};
     (profiles || []).forEach(p => { profileMap[p.id] = p; });
 
-    // 3) Renderiza
     container.innerHTML = list.map(e => {
       const profile = profileMap[e.user_id];
       const statusTag = e.status === 'completed'
@@ -1582,9 +1635,6 @@ async function renderAnalyticsView() {
   main.innerHTML = '<div class="state-box">Carregando analytics…</div>';
 
   try {
-    // ==========================================================
-    // 1) Busca dados separadamente (SEM usar !fk — evita erro)
-    // ==========================================================
     const [coursesRes, enrollsRes, completionsRes, viewsRes, profilesRes, lessonsRes] = await Promise.all([
       db.from('academy_courses').select('*'),
       db.from('academy_enrollments').select('*'),
@@ -1601,9 +1651,6 @@ async function renderAnalyticsView() {
     const profiles = profilesRes.data || [];
     const lessons = lessonsRes.data || [];
 
-    // ==========================================================
-    // 2) Cria mapas para "juntar" os dados no JavaScript
-    // ==========================================================
     const profileMap = {};
     profiles.forEach(p => { profileMap[p.id] = p; });
 
@@ -1613,18 +1660,12 @@ async function renderAnalyticsView() {
     const lessonMap = {};
     lessons.forEach(l => { lessonMap[l.id] = l; });
 
-    // ==========================================================
-    // 3) Métricas globais
-    // ==========================================================
     const totalAlunos = new Set(enrolls.map(e => e.user_id)).size;
     const totalMatriculas = enrolls.length;
     const totalConclusoes = completions.length;
     const taxaGlobal = totalMatriculas > 0 ? Math.round((totalConclusoes / totalMatriculas) * 100) : 0;
     const totalTempoSegundos = views.reduce((s, v) => s + (v.time_spent_seconds || 0), 0);
 
-    // ==========================================================
-    // 4) Estatísticas por curso
-    // ==========================================================
     const cursoStats = courses.map(c => {
       const enr = enrolls.filter(e => e.course_id === c.id);
       const comp = completions.filter(x => x.course_id === c.id);
@@ -1634,9 +1675,6 @@ async function renderAnalyticsView() {
       return { course: c, alunos: enr.length, conclusoes: comp.length, taxa, tempoTotal };
     }).sort((a, b) => b.alunos - a.alunos);
 
-    // ==========================================================
-    // 5) Alunos mais engajados
-    // ==========================================================
     const alunoStats = {};
     views.forEach(v => {
       if (!alunoStats[v.user_id]) {
@@ -1651,9 +1689,6 @@ async function renderAnalyticsView() {
     });
     const topAlunos = Object.values(alunoStats).sort((a, b) => b.time - a.time).slice(0, 10);
 
-    // ==========================================================
-    // 6) Aulas mais acessadas
-    // ==========================================================
     const aulaStats = {};
     views.forEach(v => {
       const key = v.lesson_id;
@@ -1670,9 +1705,6 @@ async function renderAnalyticsView() {
     });
     const topAulas = Object.values(aulaStats).sort((a, b) => b.views - a.views).slice(0, 10);
 
-    // ==========================================================
-    // 7) Helper para badge de taxa
-    // ==========================================================
     const badgeTaxa = (t) => {
       if (t >= 80) return `<span class="badge-pill alta">${t}%</span>`;
       if (t >= 50) return `<span class="badge-pill media">${t}%</span>`;
@@ -1680,9 +1712,6 @@ async function renderAnalyticsView() {
       return `<span class="badge-pill none">—</span>`;
     };
 
-    // ==========================================================
-    // 8) Renderiza a tela
-    // ==========================================================
     main.innerHTML = `
       <div class="section-header">
         <h2>📈 Analytics</h2>
@@ -1716,7 +1745,7 @@ async function renderAnalyticsView() {
         </div>
       </div>
 
-      <div style="background:#fff; border-radius:14px; padding:22px; border:1px solid var(--cinza-borda); margin-bottom: 20px; overflow-x: auto;">
+      <div style="background: var(--branco); border-radius:14px; padding:22px; border:1px solid var(--cinza-borda); margin-bottom: 20px; overflow-x: auto;">
         <h3 style="font-size: 1rem; margin-bottom: 14px;">📚 Por curso</h3>
         ${cursoStats.length === 0 ? '<p style="color: var(--texto-soft);">Sem cursos.</p>' : `
           <table class="analytics-table">
@@ -1743,7 +1772,7 @@ async function renderAnalyticsView() {
       </div>
 
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; margin-bottom: 20px;">
-        <div style="background:#fff; border-radius:14px; padding:22px; border:1px solid var(--cinza-borda);">
+        <div style="background: var(--branco); border-radius:14px; padding:22px; border:1px solid var(--cinza-borda);">
           <h3 style="font-size: 1rem; margin-bottom: 14px;">🏆 Alunos mais engajados</h3>
           ${topAlunos.length === 0 ? '<p style="color: var(--texto-soft); font-size: 0.88rem;">Sem dados ainda.</p>' : topAlunos.map((a, i) => `
             <div style="padding: 10px 0; border-bottom: 1px solid var(--cinza-borda); display: flex; justify-content: space-between; align-items: center; gap: 10px;">
@@ -1759,7 +1788,7 @@ async function renderAnalyticsView() {
           `).join('')}
         </div>
 
-        <div style="background:#fff; border-radius:14px; padding:22px; border:1px solid var(--cinza-borda);">
+        <div style="background: var(--branco); border-radius:14px; padding:22px; border:1px solid var(--cinza-borda);">
           <h3 style="font-size: 1rem; margin-bottom: 14px;">🔥 Aulas mais acessadas</h3>
           ${topAulas.length === 0 ? '<p style="color: var(--texto-soft); font-size: 0.88rem;">Sem dados ainda.</p>' : topAulas.map((a, i) => `
             <div style="padding: 10px 0; border-bottom: 1px solid var(--cinza-borda); display: flex; justify-content: space-between; align-items: center; gap: 10px;">
@@ -1780,98 +1809,6 @@ async function renderAnalyticsView() {
     console.error('Erro renderAnalyticsView:', e);
     main.innerHTML = `<div class="state-box" style="color: var(--cde-vermelho);">Erro ao carregar analytics: ${escapeHtml(e.message)}</div>`;
   }
-}
-
-function renderEmpresa() {
-  // ⚠️ Troque pelas URLs reais das suas imagens
-  const IMG_1 = 'https://casadosespelhos.com.br/wp-content/uploads/2020/03/WhatsApp-Image-2025-09-03-at-20.22.26.jpeg';
-  const IMG_2 = 'https://casadosespelhos.com.br/wp-content/uploads/2020/03/WhatsApp-Image-2025-09-03-at-20.22.25.jpeg';
-
-  return `
-    <section class="hero-banner" style="min-height:200px;">
-      <div class="hero-content">
-        <span class="hero-tag">🏢 Sobre nós</span>
-        <h1>Nossa Empresa</h1>
-        <p>Conheça um pouco da história, dos valores e da trajetória da CDE Blindex AM.</p>
-      </div>
-    </section>
-
-    <div class="section-header">
-      <h2>Nossa História</h2>
-      <span class="section-sub">Conheça nossa diretora Kilze Krauss</span>
-    </div>
-
-    <div style="background:#fff; border-radius:14px; padding:26px; border:1px solid var(--cinza-borda); box-shadow: var(--sombra-sm); margin-bottom:26px;">
-      <p style="font-size:0.95rem; color:var(--texto-soft); line-height:1.75; margin-bottom:16px;">
-        Sua trajetória se confunde com a própria história da CDE Blindex®, que completa quase 50 anos de mercado e se consolidou como referência em soluções de vidros modernos para a região.
-      </p>
-      <p style="font-size:0.95rem; color:var(--texto-soft); line-height:1.75; margin-bottom:16px;">
-        Kilze ocupa um lugar singular: é a única mulher no comando de uma linha de têmpera de vidros no estado do Amazonas, o que a torna não apenas uma gestora de destaque, mas também uma referência para outras mulheres que sonham em ocupar espaços de liderança em setores tradicionalmente masculinos. Sua atuação firme, visionária e inspiradora mostra que competência e sensibilidade podem caminhar juntas na construção de resultados sólidos.
-      </p>
-      <p style="font-size:0.95rem; color:var(--texto-soft); line-height:1.75;">
-        Durante seus mais de 10 anos de liderança, Kilze Krauss foi responsável por transformar a CDE Blindex® em um verdadeiro polo de excelência. Uma de suas principais conquistas foi a associação da empresa à marca Blindex®, líder mundial em soluções em vidros de segurança e design, o que elevou ainda mais o padrão de qualidade e credibilidade da companhia perante clientes e parceiros. Além disso, investiu fortemente em marketing, comunicação e educação do mercado, posicionando a CDE Blindex® como uma empresa próxima, transparente e comprometida com a inovação.
-      </p>
-    </div>
-
-    <div class="section-header">
-      <h2>Nossa Trajetória em Imagens</h2>
-    </div>
-
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:18px; margin-bottom:26px;">
-      <figure style="background:#fff; border-radius:14px; overflow:hidden; border:1px solid var(--cinza-borda); box-shadow:var(--sombra-sm);">
-        <img src="${IMG_1}" alt="Marca CDE" style="width:100%; height:240px; object-fit:cover; display:block; background:#fff;">
-        <figcaption style="padding:14px 16px; font-size:0.85rem; color:var(--texto-soft); font-weight:600;">
-          À frente da CDE Blindex® há mais de uma década, Kilze Krauss tem conduzido a empresa por um caminho de inovação, qualidade e liderança no setor de vidros no Amazonas. 
-        </figcaption>
-      </figure>
-
-      <figure style="background:#fff; border-radius:14px; overflow:hidden; border:1px solid var(--cinza-borda); box-shadow:var(--sombra-sm);">
-        <img src="${IMG_2}" alt="Nossa equipe" style="width:100%; height:240px; object-fit:cover; display:block;">
-        <figcaption style="padding:14px 16px; font-size:0.85rem; color:var(--texto-soft); font-weight:600;">
-          Kilze acredita que o maior patrimônio da CDE Blindex® são as pessoas. Por isso, dedica atenção especial à valorização da equipe, investindo em treinamentos, integração e no desenvolvimento contínuo de seus colaboradores. Para ela, qualidade começa dentro de casa, com profissionais motivados, engajados e orgulhosos de fazer parte da história da empresa. Essa visão humanizada é um dos diferenciais de sua gestão e uma das razões pelas quais a CDE Blindex® mantém uma posição de destaque no mercado.
-        </figcaption>
-      </figure>
-    </div>
-
-    <div class="section-header">
-      <h2>Nossos Valores</h2>
-    </div>
-
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px;">
-      ${renderValoresCards()}
-    </div>
-  `;
-}
-
-function renderValoresCards() {
-  const valores = [
-    { emoji: '🤝', titulo: 'Missão',      desc: 'Fabricar vidros BLINDEX® com qualidade, proporcionando segurança às pessoas.' },
-    { emoji: '🎯', titulo: 'Visão',    desc: 'Ser referência em vidros de qualidade no AMAZONAS' },
-    { emoji: '🌱', titulo: 'Valores', desc: 'Excelência e Qualidade | Respeito aos clientes, parceiros e colaboradores | Integridade | Segurança.' }
-  ];
-  let html = '';
-  for (const v of valores) {
-    html += '<div style="background:#fff; border-radius:14px; padding:20px; border:1px solid var(--cinza-borda); box-shadow:var(--sombra-sm);">';
-    html += '<div style="font-size:1.8rem; margin-bottom:8px;">' + v.emoji + '</div>';
-    html += '<div style="font-weight:800; font-size:0.95rem; margin-bottom:6px;">' + v.titulo + '</div>';
-    html += '<div style="font-size:0.82rem; color:var(--texto-soft); line-height:1.5;">' + v.desc + '</div>';
-    html += '</div>';
-  }
-  return html;
-}
-  
-function renderMyCourses() {
-  const enrolled = filterCourses(myEnrollments);
-  if (enrolled.length === 0) {
-    return `<div class="section-header"><h2>Meus Cursos</h2></div>${renderEmpty('📚', 'Você ainda não está matriculado em nenhum curso.')}`;
-  }
-  return `
-    <div class="section-header">
-      <h2>Meus Cursos</h2>
-      <span class="section-sub">${enrolled.length} curso${enrolled.length === 1 ? '' : 's'}</span>
-    </div>
-    <div class="courses-grid">${enrolled.map(renderCourseCard).join('')}</div>
-  `;
 }
 
 // ==================== INIT ====================
