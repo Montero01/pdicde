@@ -371,3 +371,93 @@ button[disabled] { cursor: not-allowed !important; opacity: 0.55; }
   .ranking-filter-row select { width: 100%; }
   .form-grid { grid-template-columns: 1fr; }
 }
+
+/* ===================== BOTÃO FLUTUANTE CDE ACADEMY ===================== */
+.academy-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 22px 14px 18px;
+  background: linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%);
+  color: #fff;
+  border-radius: 50px;
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 0.9rem;
+  letter-spacing: 0.3px;
+  font-family: inherit;
+  box-shadow: 0 8px 24px rgba(91, 33, 182, 0.45),
+              0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease, box-shadow 0.25s ease;
+  white-space: nowrap;
+  animation: academyPulse 3s ease-in-out infinite;
+  cursor: pointer;
+}
+
+.academy-fab:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 12px 32px rgba(91, 33, 182, 0.6),
+              0 4px 10px rgba(0, 0, 0, 0.2);
+  animation: none;
+}
+
+.academy-fab:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+.academy-fab .academy-fab-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.25));
+}
+
+.academy-fab .academy-fab-text {
+  display: inline-block;
+  transition: max-width 0.3s ease;
+}
+
+/* Brilho de "chamar atenção" a cada 3s */
+@keyframes academyPulse {
+  0%, 88%, 100% {
+    box-shadow: 0 8px 24px rgba(91, 33, 182, 0.45),
+                0 2px 6px rgba(0, 0, 0, 0.15);
+  }
+  92% {
+    box-shadow: 0 8px 24px rgba(91, 33, 182, 0.7),
+                0 0 0 10px rgba(124, 58, 237, 0.18);
+  }
+}
+
+/* Dark mode — botão fica com contraste extra */
+[data-theme="dark"] .academy-fab {
+  background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.55),
+              0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Mobile — vira um botão circular só com o ícone */
+@media (max-width: 600px) {
+  .academy-fab {
+    bottom: 18px;
+    right: 18px;
+    padding: 14px;
+    border-radius: 50%;
+    width: 58px;
+    height: 58px;
+    justify-content: center;
+    gap: 0;
+  }
+  .academy-fab .academy-fab-text {
+    display: none;
+  }
+  .academy-fab .academy-fab-icon {
+    font-size: 1.7rem;
+  }
+}
