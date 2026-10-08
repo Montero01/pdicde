@@ -306,6 +306,10 @@ async function loadUser() {
   document.getElementById('user-avatar').textContent = ini;
   document.getElementById('topbar-avatar').textContent = ini;
   document.getElementById('user-name').textContent = name;
+  const posEl = document.getElementById('user-position');
+  if (posEl) posEl.textContent = profile.position || '';
+
+  applyAvatarToUI(name, profile.avatar_url || null);
   document.getElementById('user-role').textContent = isProfessor ? 'Professor Master' : roleLabel(profile.role);
 
   const sectorEl = document.getElementById('user-sector');
