@@ -40,21 +40,25 @@
 
 <!-- APP -->
 <div id="app-view" class="hidden">
-  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+  <div class="bar-overlay" id="bar-overlay" onclick="togglebar()"></div>
 
-  <aside class="sidebar" id="sidebar">
+  <a class="sidebar" id="sidebar">
     <div class="sidebar-logo">
       <img src="https://casadosespelhos.com.br/wp-content/uploads/2018/05/marca_cde_cores_horizontal_tag_bl-2048x713.png" alt="CDE">
     </div>
     <div class="sidebar-user">
-      <div class="sidebar-avatar" id="user-avatar">CD</div>
+      <div class="sidebar-avatar" id="user-avatar" onclick="openAvatarModal()">CD</div>
       <div class="sidebar-user-name" id="user-name">Carregando…</div>
+      <div class="sidebar-user-position" id="user-position"></div>
       <div class="sidebar-user-role" id="user-role"></div>
       <div class="sidebar-user-sector hidden" id="user-sector"></div>
     </div>
     <nav class="sidebar-nav">
       <button class="nav-item active" data-view="home" onclick="switchView('home')">
         <span class="nav-icon">🏠</span><span>Página Inicial</span>
+      </button>
+       <button class="nav-item" data-view="empresa" onclick="switchView('empresa')">
+        <span class="nav-icon">🏢</span><span>Nossa Empresa</span>
       </button>
       <button class="nav-item" data-view="mycourses" onclick="switchView('mycourses')">
         <span class="nav-icon">💻</span><span>Meus Cursos</span>
@@ -98,7 +102,7 @@
         <button class="icon-btn hide-mobile" title="Favoritos">⭐</button>
         <button class="icon-btn hide-mobile" title="Mensagens">✉️</button>
       </div>
-      <div class="topbar-avatar" id="topbar-avatar" onclick="switchView('report')" title="Ver meu desempenho">CD</div>
+      <div class="topbar-avatar" id="topbar-avatar" onclick="openAvatarModal()" title="Alterar foto">CD</div>
     </header>
     <main class="main-content" id="main-content"></main>
     <footer class="main-footer">
