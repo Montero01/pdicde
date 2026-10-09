@@ -950,30 +950,59 @@ async function svgToPngDataURL(svgUrl, targetWidth = 400) {
 }
 
 // ==================== HELPER: LOGO BLINDEX VETORIAL ====================
+// ==================== HELPER: LOGO BLINDEX VETORIAL ====================
 function drawBlindexVector(doc, x, y, size) {
-  const RED = [230, 30, 37];     // vermelho Blindex
+  const RED = [230, 30, 37];
   const WHITE = [255, 255, 255];
 
-  // Retângulo vermelho (quadrado)
+  // Quadrado vermelho
   doc.setFillColor(...RED);
   doc.rect(x, y, size, size, 'F');
 
-  // Texto "BLINDEX" rotacionado 45°
+  // ===================== TAMANHO DE FONTE DINÂMICO =====================
+  // A diagonal do quadrado é `size * √2`. Queremos que "BLINDEX" preencha
+  // ~88% dessa diagonal, então calculamos o tamanho de fonte ideal
+  // iterando com `getTextWidth()` até convergir.
+  const diagonal = size * Math.SQRT2;
+  const targetWidth = diagonal * 0.88;
+
+  doc.setFont('helvetica', 'bold');
+  let fontSize = size * 0.5;   // tamanho inicial (só um chute)
+  doc.setFontSize(fontSize);
+
+  // 5 iterações de convergência já bastam
+  for (let i = 0; i < 5; i++) {
+    const w = doc.getTextWidth('BLINDEX');
+    if (w <= 0) break;
+    fontSize *= targetWidth / w;
+    doc.setFontSize(fontSize);
+  }
+
+  // ===================== POSICIONAMENTO CENTRALIZADO =====================
+  const cx = x + size / 2;
+  const cy = y + size / 2;
+
   doc.saveGraphicsState();
   doc.setTextColor(...WHITE);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(size * 0.75);
-  const cx = x + size / 2;
-  const cy = y + size / 2 + size * 0.02;
-  doc.text('BLINDEX', cx, cy, { align: 'center', angle: 45 });
+  doc.setFontSize(fontSize);
+
+  // Compensação do baseline: o texto "senta" na linha base, então
+  // empurramos o ponto de ancoragem ligeiramente para que o centro
+  // visual das letras coincida com o centro do quadrado.
+  const fontMm = fontSize * 0.3528;          // pt → mm
+  const baselineShift = fontMm * 0.35;        // ~35% da altura da fonte
+  const adjX = -baselineShift * Math.SQRT1_2; // perpendicular a 45°
+  const adjY = baselineShift * Math.SQRT1_2;
+
+  doc.text('BLINDEX', cx + adjX, cy + adjY, { align: 'center', angle: 45 });
 
   // ® no canto superior direito
-  doc.setFontSize(size * 0.14);
-  doc.setTextColor(...WHITE);
-  doc.text('®', x + size * 0.88, y + size * 0.18, { align: 'center' });
+  doc.setFontSize(size * 0.16);
+  doc.text('®', x + size * 0.85, y + size * 0.20, { align: 'center' });
+
   doc.restoreGraphicsState();
 }
-
 // ==================== CERTIFICADO ====================
 // ==================== HELPER: CARREGA IMAGEM COMO DATA URL ====================
 async function imageToDataURL(url) {
