@@ -4,8 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PDI | CDE Blindex</title>
-  <link rel="stylesheet" href="style.css">  
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+
+<!-- Supabase com versão fixa + fallback automático -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+  // Se o jsdelivr falhar, tenta o unpkg automaticamente
+  if (typeof supabase === 'undefined') {
+    console.warn('jsdelivr falhou, tentando unpkg...');
+    document.write('<script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"><\/script>');
+  }
+</script>
 </head>
 <body>
 
