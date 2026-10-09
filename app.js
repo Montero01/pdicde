@@ -256,18 +256,24 @@ async function loadGoalsFor(userId, listId, selectId) {
 async function loadCertificatesFor(userId, listId) {
   const { data: certs, error } = await db.from('certificates').select('*, goals(title)').eq('user_id', userId).order('submitted_at', { ascending: false });
   const list = document.getElementById(listId);
-  if (error || !certs || certs.length === 0) { list.innerHTML = '<p style="color:#6D6E71;">Nenhum certificado enviado ainda.</p>'; return; }
-  list.innerHTML = certs.map(c => `
+  if (error || !certs || certs.length === 0) {
+    list.innerHTML = '<p style="color:#6D6E71;">Nenhum certificado enviado ainda.</p>';
+    return;
+  }
+  list.innerHTML = certs.map(c => {
+    const dois = c.file_url_2 ? '<span style="font-size:0.72rem; color:#6D6E71; margin-left:6px;">• 2 arquivos anexados</span>' : '';
+    return `
     <div class="cert-item">
       <div class="info">
-        <div class="title">${escapeHtml(c.goals?.title || 'Meta')}</div>
+        <div class="title">${escapeHtml(c.goals?.title || 'Meta')}${dois}</div>
         <div class="meta">Enviado em ${formatDate(c.submitted_at)}</div>
       </div>
       <div>
         <span class="badge ${c.status}">${c.status === 'pending' ? 'Pendente' : c.status === 'approved' ? 'Aprovado' : 'Rejeitado'}</span>
         ${c.status === 'approved' ? `<strong style="margin-left:8px; color:#158A49;">+${c.points_awarded} pts</strong>` : ''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 async function loadScoreFor(userId, scoreId, quartersId, coefId, coefBarId) {
   const { data: approved } = await db.from('certificates').select('points_awarded, validated_at').eq('user_id', userId).eq('status', 'approved');
@@ -282,23 +288,95 @@ async function loadScoreFor(userId, scoreId, quartersId, coefId, coefBarId) {
 }
 
 // ==================== UPLOAD ====================
-async function submitCertificate(e) { e.preventDefault(); await _doUpload(currentUser.id, 'cert-goal', 'cert-file', 'emp-certs-list'); await loadScoreFor(currentUser.id, 'emp-score', 'emp-quarters', 'emp-coef', 'emp-coef-bar'); }
-async function submitMgmtCertificate(e) { e.preventDefault(); await _doUpload(currentUser.id, 'mgmt-cert-goal', 'mgmt-cert-file', 'mgmt-certs-list'); await loadScoreFor(currentUser.id, 'mgmt-score', 'mgmt-quarters', 'mgmt-coef', 'mgmt-coef-bar'); }
+async function submitCertificate(e) {
+  e.preventDefault();
+  await _doUpload(currentUser.id, 'cert-goal', 'cert-file', 'emp-certs-list');
+  await loadScoreFor(currentUser.id, 'emp-score', 'emp-quarters', 'emp-coef', 'emp-coef-bar');
+}
+async function submitMgmtCertificate(e) {
+  e.preventDefault();
+  await _doUpload(currentUser.id, 'mgmt-cert-goal', 'mgmt-cert-file', 'mgmt-certs-list');
+  await loadScoreFor(currentUser.id, 'mgmt-score', 'mgmt-quarters', 'mgmt-coef', 'mgmt-coef-bar');
+}
+
+// Helper: mostra o nome do arquivo escolhido
+function onCertFileChange(inputId, labelId) {
+  const input = document.getElementById(inputId);
+  const label = document.getElementById(labelId);
+  if (!input || !label) return;
+  const f = input.files[0];
+  label.textContent = f ? '✓ ' + f.name : '';
+}
+
 async function _doUpload(userId, goalSelectId, fileInputId, listId) {
   const goalId = document.getElementById(goalSelectId).value;
-  const fileInput = document.getElementById(fileInputId);
-  const file = fileInput.files[0];
-  if (!goalId || !file) return showMessage('Selecione a meta e o arquivo.', 'error');
-  const ext = file.name.split('.').pop();
-  const cleanName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
-  const filePath = `${userId}/${cleanName}`;
-  const { error: upErr } = await db.storage.from('certificates').upload(filePath, file);
-  if (upErr) return showMessage('Erro no upload: ' + upErr.message, 'error');
-  const { error: dbErr } = await db.from('certificates').insert({ user_id: userId, goal_id: goalId, file_url: filePath, file_name: file.name, status: 'pending' });
-  if (dbErr) return showMessage('Erro ao registrar: ' + dbErr.message, 'error');
-  showMessage('Certificado enviado! Aguarde validação.', 'success');
-  fileInput.value = '';
-  loadCertificatesFor(userId, listId);
+  const fileInput1 = document.getElementById(fileInputId);
+  const fileInput2 = document.getElementById(fileInputId + '-2');
+
+  const files = [];
+  if (fileInput1 && fileInput1.files[0]) files.push(fileInput1.files[0]);
+  if (fileInput2 && fileInput2.files[0]) files.push(fileInput2.files[0]);
+
+  if (!goalId) return showMessage('Selecione a meta relacionada.', 'error');
+  if (files.length === 0) return showMessage('Selecione pelo menos 1 arquivo.', 'error');
+  if (files.length > 2) return showMessage('Máximo de 2 arquivos por envio.', 'error');
+
+  // Validação: apenas PDF, JPG, JPEG, PNG
+  const TIPOS = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+  for (const f of files) {
+    const extOk = /\.(pdf|jpe?g|png)$/i.test(f.name);
+    if (!TIPOS.includes(f.type) && !extOk) {
+      return showMessage(`Tipo não permitido: "${f.name}". Use PDF, JPG ou PNG.`, 'error');
+    }
+    if (f.size > 10 * 1024 * 1024) {
+      return showMessage(`Arquivo muito grande: "${f.name}". Máximo 10MB.`, 'error');
+    }
+  }
+
+  try {
+    const uploadOne = async (file) => {
+      const ext = file.name.split('.').pop().toLowerCase();
+      const cleanName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+      const filePath = `${userId}/${cleanName}`;
+      const { error } = await db.storage.from('certificates').upload(filePath, file);
+      if (error) throw error;
+      return { path: filePath, name: file.name };
+    };
+
+    const primeiro = await uploadOne(files[0]);
+    let segundo = null;
+    if (files[1]) segundo = await uploadOne(files[1]);
+
+    const payload = {
+      user_id: userId,
+      goal_id: goalId,
+      file_url: primeiro.path,
+      file_name: primeiro.name,
+      status: 'pending'
+    };
+    if (segundo) {
+      payload.file_url_2 = segundo.path;
+      payload.file_name_2 = segundo.name;
+    }
+
+    const { error: dbErr } = await db.from('certificates').insert(payload);
+    if (dbErr) throw dbErr;
+
+    showMessage('Documento enviado! Aguarde validação.', 'success');
+
+    // Limpa os campos
+    if (fileInput1) fileInput1.value = '';
+    if (fileInput2) fileInput2.value = '';
+    const lbl1 = document.getElementById(fileInputId + '-name');
+    if (lbl1) lbl1.textContent = '';
+    const lbl2 = document.getElementById(fileInputId + '-2-name');
+    if (lbl2) lbl2.textContent = '';
+
+    loadCertificatesFor(userId, listId);
+  } catch (e) {
+    console.error('Erro no upload:', e);
+    showMessage('Erro: ' + (e.message || 'falha no upload'), 'error');
+  }
 }
 
 // ==================== GERENCIAR METAS ====================
@@ -603,13 +681,19 @@ async function loadPendingCertificates() {
   if (!certs || certs.length === 0) { list.innerHTML = '<p style="color:#6D6E71;">Nenhum certificado pendente.</p>'; return; }
   let visible = certs;
   if (isSupervisor && !canManageAll) visible = certs.filter(c => normalizeSector(c.profiles?.sector) === normalizeSector(currentProfile.sector));
+
   pendingCertsCache = {};
   for (let c of visible) {
     const { data } = await db.storage.from('certificates').createSignedUrl(c.file_url, 60 * 60);
     c.signedUrl = data?.signedUrl || '#';
+    if (c.file_url_2) {
+      const { data: d2 } = await db.storage.from('certificates').createSignedUrl(c.file_url_2, 60 * 60);
+      c.signedUrl2 = d2?.signedUrl || '#';
+    }
     pendingCertsCache[c.id] = c;
   }
   if (visible.length === 0) { list.innerHTML = '<p style="color:#6D6E71;">Nenhum pendente no seu escopo.</p>'; return; }
+
   list.innerHTML = visible.map(c => {
     const isSup = (c.profiles?.role || '').toLowerCase() === 'supervisor';
     const roleTag = isSup ? ' ' + getRoleBadge(c.profiles.role, c.profiles.is_master) : '';
@@ -617,7 +701,10 @@ async function loadPendingCertificates() {
       <div class="info">
         <div class="title">${escapeHtml(c.profiles?.full_name || 'Colaborador')}${roleTag} ${getSectorBadge(c.profiles?.sector)} — ${escapeHtml(c.goals?.title || 'Meta')}</div>
         <div class="meta">Enviado em ${formatDate(c.submitted_at)}</div>
-        <div class="meta"><a href="${c.signedUrl}" target="_blank" style="color: #E87722; font-weight: bold; text-decoration: none;">📄 Ver ${escapeHtml(c.file_name || 'certificado')}</a></div>
+        <div class="meta">
+          <a href="${c.signedUrl}" target="_blank" style="color: #E87722; font-weight: bold; text-decoration: none;">📄 Ver ${escapeHtml(c.file_name || 'arquivo 1')}</a>
+          ${c.signedUrl2 ? `<br><a href="${c.signedUrl2}" target="_blank" style="color: #E87722; font-weight: bold; text-decoration: none;">📄 Ver ${escapeHtml(c.file_name_2 || 'arquivo 2')}</a>` : ''}
+        </div>
       </div>
       <div style="display:flex; gap:8px; align-items:center;">
         <button class="small success" onclick="openApproveModal('${c.id}')">✅ Aprovar</button>
@@ -626,6 +713,7 @@ async function loadPendingCertificates() {
     </div>`;
   }).join('');
 }
+
 async function loadValidatedCertificates() {
   const { data: certs } = await db.from('certificates').select('*, profiles!certificates_user_id_fkey(full_name, sector, role, is_master), goals(title)').neq('status', 'pending').order('validated_at', { ascending: false }).limit(30);
   const list = document.getElementById('validated-certs-list');
@@ -636,9 +724,10 @@ async function loadValidatedCertificates() {
   list.innerHTML = visible.map(c => {
     const isSup = (c.profiles?.role || '').toLowerCase() === 'supervisor';
     const roleTag = isSup ? ' ' + getRoleBadge(c.profiles.role, c.profiles.is_master) : '';
+    const dois = c.file_url_2 ? ' <span style="font-size:0.72rem; color:#6D6E71;">• 2 arquivos</span>' : '';
     return `<div class="cert-item">
       <div class="info">
-        <div class="title">${escapeHtml(c.profiles?.full_name || '')}${roleTag} ${getSectorBadge(c.profiles?.sector)} — ${escapeHtml(c.goals?.title || '')}</div>
+        <div class="title">${escapeHtml(c.profiles?.full_name || '')}${roleTag} ${getSectorBadge(c.profiles?.sector)} — ${escapeHtml(c.goals?.title || '')}${dois}</div>
         <div class="meta">Validado em ${formatDate(c.validated_at)}</div>
       </div>
       <div>
