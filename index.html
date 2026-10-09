@@ -70,17 +70,28 @@
     </div>
 
     <div class="card">
-      <h2>📎 Enviar Certificado/Relatório/Comprovante</h2>
-      <form id="upload-form" onsubmit="submitCertificate(event)">
-        <label>Meta relacionada:</label>
-        <select id="cert-goal" required></select>
-        <label>Arquivo (PDF, PNG, JPG ou JPEG):</label>
-        <div class="file-input-wrapper">
-          <input type="file" id="cert-file" accept=".pdf,.png,.jpg,.jpeg" required>
-        </div>
-        <button type="submit" class="success">Enviar para Validação Gerencial</button>
-      </form>
+  <h2>📎 Enviar Certificado/Relatório/Comprovante</h2>
+  <form id="upload-form" onsubmit="submitCertificate(event)">
+    <label>Meta relacionada:</label>
+    <select id="cert-goal" required></select>
+
+    <label>Arquivo 1 (obrigatório) — PDF, PNG ou JPG:</label>
+    <div class="file-input-wrapper">
+      <input type="file" id="cert-file" accept=".pdf,.png,.jpg,.jpeg" required
+             onchange="onCertFileChange('cert-file','cert-file-name')">
+      <div class="upload-file" id="cert-file-name" style="font-size:0.78rem; color:var(--verde); font-weight:700; margin-top:6px;"></div>
     </div>
+
+    <label>Arquivo 2 (opcional) — PDF, PNG ou JPG:</label>
+    <div class="file-input-wrapper">
+      <input type="file" id="cert-file-2" accept=".pdf,.png,.jpg,.jpeg"
+             onchange="onCertFileChange('cert-file-2','cert-file-2-name')">
+      <div class="upload-file" id="cert-file-2-name" style="font-size:0.78rem; color:var(--verde); font-weight:700; margin-top:6px;"></div>
+    </div>
+
+    <button type="submit" class="success">Enviar para Validação Gerencial</button>
+  </form>
+</div>
 
     <div class="card">
       <h2>📜 Metas e Certificações Validadas</h2>
@@ -203,15 +214,28 @@
         <div id="mgmt-goals-list"></div>
       </div>
       <div class="card">
-        <h2>📎 Enviar Certificado/Relatório/Comprovante</h2>
-        <form id="mgmt-upload-form" onsubmit="submitMgmtCertificate(event)">
-          <label>Meta relacionada:</label>
-          <select id="mgmt-cert-goal" required></select>
-          <label>Arquivo (PDF, PNG, JPG ou JPEG):</label>
-          <div class="file-input-wrapper"><input type="file" id="mgmt-cert-file" accept=".pdf,.png,.jpg,.jpeg" required></div>
-          <button type="submit" class="success">Enviar para Validação</button>
-        </form>
-      </div>
+  <h2>📎 Enviar Certificado/Relatório/Comprovante</h2>
+  <form id="mgmt-upload-form" onsubmit="submitMgmtCertificate(event)">
+    <label>Meta relacionada:</label>
+    <select id="mgmt-cert-goal" required></select>
+
+    <label>Arquivo 1 (obrigatório) — PDF, PNG ou JPG:</label>
+    <div class="file-input-wrapper">
+      <input type="file" id="mgmt-cert-file" accept=".pdf,.png,.jpg,.jpeg" required
+             onchange="onCertFileChange('mgmt-cert-file','mgmt-cert-file-name')">
+      <div class="upload-file" id="mgmt-cert-file-name" style="font-size:0.78rem; color:var(--verde); font-weight:700; margin-top:6px;"></div>
+    </div>
+
+    <label>Arquivo 2 (opcional) — PDF, PNG, JPG:</label>
+    <div class="file-input-wrapper">
+      <input type="file" id="mgmt-cert-file-2" accept=".pdf,.png,.jpg,.jpeg"
+             onchange="onCertFileChange('mgmt-cert-file-2','mgmt-cert-file-2-name')">
+      <div class="upload-file" id="mgmt-cert-file-2-name" style="font-size:0.78rem; color:var(--verde); font-weight:700; margin-top:6px;"></div>
+    </div>
+
+    <button type="submit" class="success">Enviar para Validação</button>
+  </form>
+</div>
       <div class="card">
         <h2>📜 Meus Certificados/Resultados</h2>
         <div id="mgmt-certs-list"></div>
