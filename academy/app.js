@@ -480,7 +480,7 @@ function renderEmpresa() {
       <div class="hero-content">
         <span class="hero-tag">🏢 Sobre nós</span>
         <h1>Nossa Empresa</h1>
-        <p>Conheça um pouco da história, dos valores e da trajetória da CDE Blindex AM.</p>
+        <p>Conheça um pouco da história, dos valores e da trajetória da CDE Blindex, a única BLINDEX® da Região Norte!</p>
       </div>
     </section>
 
@@ -522,7 +522,7 @@ function renderEmpresa() {
     </div>
 
     <div class="section-header">
-      <h2>Nossos Valores</h2>
+      <h2>A Casa dos Espelhos</h2>
     </div>
 
     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px;">
