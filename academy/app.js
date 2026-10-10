@@ -1,7 +1,7 @@
 // ==================== CONFIG ====================
 const SUPABASE_URL = 'https://whjyvphamkbjcrdzhzoc.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_EyZgqDQTSV-M-O3_l63V7Q_LFcFDl69';
-const PDI_URL = 'https://montero01.github.io/pdicde/';  // ajuste se necessário
+const PDI_URL = 'https://montero01.github.io/pdicde/';
 const BUCKET = 'academy';
 
 const { createClient } = supabase;
@@ -45,10 +45,10 @@ let playerStartedAt = null;
 let playerTickInterval = null;
 
 let certificateData = null;
+let selectedAvatarFile = null;
+let dashboardChartInstance = null;
 
 // ===================== AVATAR DE PERFIL =====================
-let selectedAvatarFile = null;
-
 function openAvatarModal() {
   if (!currentUser || !currentProfile) return;
 
@@ -317,15 +317,15 @@ async function loadUser() {
   if (profile.sector) { sectorEl.textContent = profile.sector; sectorEl.classList.remove('hidden'); }
 
   if (canManage) {
-  document.getElementById('nav-manage').classList.remove('hidden');
-  document.getElementById('nav-analytics').classList.remove('hidden');
-}
+    document.getElementById('nav-manage').classList.remove('hidden');
+    document.getElementById('nav-analytics').classList.remove('hidden');
+  }
 
-// Dashboard executivo — somente Diretoria/Master
-if (isMaster || isDiretor) {
-  const navDash = document.getElementById('nav-dashboard');
-  if (navDash) navDash.classList.remove('hidden');
-}
+  // Dashboard executivo — somente Diretoria/Master
+  if (isMaster || isDiretor) {
+    const navDash = document.getElementById('nav-dashboard');
+    if (navDash) navDash.classList.remove('hidden');
+  }
 
   await loadTopbarPoints();
   await loadCourses();
@@ -933,84 +933,6 @@ async function fetchImageAsDataURL(url) {
   });
 }
 
-// ==================== HELPER: SVG → PNG ====================
-async function svgToPngDataURL(svgUrl, targetWidth = 400) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        const ratio = (img.height / img.width) || 1;
-        canvas.width = targetWidth;
-        canvas.height = Math.round(targetWidth * ratio);
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/png'));
-      } catch (e) {
-        reject(e);
-      }
-    };
-    img.onerror = () => reject(new Error('Falha ao carregar SVG'));
-    img.src = svgUrl;
-  });
-}
-
-// ==================== HELPER: LOGO BLINDEX VETORIAL ====================
-// ==================== HELPER: LOGO BLINDEX VETORIAL ====================
-function drawBlindexVector(doc, x, y, size) {
-  const RED = [230, 30, 37];
-  const WHITE = [255, 255, 255];
-
-  // Quadrado vermelho
-  doc.setFillColor(...RED);
-  doc.rect(x, y, size, size, 'F');
-
-  // ===================== TAMANHO DE FONTE DINÂMICO =====================
-  // A diagonal do quadrado é `size * √2`. Queremos que "BLINDEX" preencha
-  // ~88% dessa diagonal, então calculamos o tamanho de fonte ideal
-  // iterando com `getTextWidth()` até convergir.
-  const diagonal = size * Math.SQRT2;
-  const targetWidth = diagonal * 0.88;
-
-  doc.setFont('helvetica', 'bold');
-  let fontSize = size * 0.5;   // tamanho inicial (só um chute)
-  doc.setFontSize(fontSize);
-
-  // 5 iterações de convergência já bastam
-  for (let i = 0; i < 5; i++) {
-    const w = doc.getTextWidth('BLINDEX');
-    if (w <= 0) break;
-    fontSize *= targetWidth / w;
-    doc.setFontSize(fontSize);
-  }
-
-  // ===================== POSICIONAMENTO CENTRALIZADO =====================
-  const cx = x + size / 2;
-  const cy = y + size / 2;
-
-  doc.saveGraphicsState();
-  doc.setTextColor(...WHITE);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(fontSize);
-
-  // Compensação do baseline: o texto "senta" na linha base, então
-  // empurramos o ponto de ancoragem ligeiramente para que o centro
-  // visual das letras coincida com o centro do quadrado.
-  const fontMm = fontSize * 0.3528;          // pt → mm
-  const baselineShift = fontMm * 0.35;        // ~35% da altura da fonte
-  const adjX = -baselineShift * Math.SQRT1_2; // perpendicular a 45°
-  const adjY = baselineShift * Math.SQRT1_2;
-
-  doc.text('BLINDEX', cx + adjX, cy + adjY, { align: 'center', angle: 45 });
-
-  // ® no canto superior direito
-  doc.setFontSize(size * 0.16);
-  doc.text('®', x + size * 0.85, y + size * 0.20, { align: 'center' });
-
-  doc.restoreGraphicsState();
-}
-// ==================== CERTIFICADO ====================
 // ==================== HELPER: CARREGA IMAGEM COMO DATA URL ====================
 async function imageToDataURL(url) {
   return new Promise((resolve, reject) => {
@@ -1056,22 +978,50 @@ function drawBlindexVector(doc, x, y, size) {
   doc.setFillColor(...RED);
   doc.rect(x, y, size, size, 'F');
 
-  // Texto "BLINDEX" rotacionado 45° — maior
+  // ===================== TAMANHO DE FONTE DINÂMICO =====================
+  // A diagonal do quadrado é `size * √2`. Queremos que "BLINDEX" preencha
+  // ~88% dessa diagonal, então calculamos o tamanho de fonte ideal
+  // iterando com `getTextWidth()` até convergir.
+  const diagonal = size * Math.SQRT2;
+  const targetWidth = diagonal * 0.88;
+
+  doc.setFont('helvetica', 'bold');
+  let fontSize = size * 0.5;
+  doc.setFontSize(fontSize);
+
+  // 5 iterações de convergência já bastam
+  for (let i = 0; i < 5; i++) {
+    const w = doc.getTextWidth('BLINDEX');
+    if (w <= 0) break;
+    fontSize *= targetWidth / w;
+    doc.setFontSize(fontSize);
+  }
+
+  // ===================== POSICIONAMENTO CENTRALIZADO =====================
+  const cx = x + size / 2;
+  const cy = y + size / 2;
+
   doc.saveGraphicsState();
   doc.setTextColor(...WHITE);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(size * 0.42);   // 👈 aumentado de 0.32 para 0.42
-  const cx = x + size / 2;
-  const cy = y + size / 2 + size * 0.06;
-  doc.text('BLINDEX', cx, cy, { align: 'center', angle: 45 });
+  doc.setFontSize(fontSize);
+
+  // Compensação do baseline
+  const fontMm = fontSize * 0.3528;
+  const baselineShift = fontMm * 0.35;
+  const adjX = -baselineShift * Math.SQRT1_2;
+  const adjY = baselineShift * Math.SQRT1_2;
+
+  doc.text('BLINDEX', cx + adjX, cy + adjY, { align: 'center', angle: 45 });
 
   // ® no canto superior direito
-  doc.setFontSize(size * 0.14);
-  doc.text('®', x + size * 0.82, y + size * 0.22, { align: 'center' });
+  doc.setFontSize(size * 0.16);
+  doc.text('®', x + size * 0.85, y + size * 0.20, { align: 'center' });
+
   doc.restoreGraphicsState();
 }
 
-// ==================== CERTIFICADO ====================
+// ==================== CERTIFICADO PDF ====================
 async function downloadCertificate() {
   if (!certificateData) return;
   const { completion, course } = certificateData;
@@ -1079,14 +1029,12 @@ async function downloadCertificate() {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const W = 297, H = 210;
 
-  // Paleta
   const LARANJA = [232, 119, 34];
   const VERMELHO = [200, 16, 46];
   const GRAFITE = [65, 64, 66];
   const CINZA = [109, 110, 113];
   const CINZA_CLARO = [160, 160, 160];
 
-  // ===================== CARREGA LOGO CDE =====================
   const logoCdeUrl = 'https://casadosespelhos.com.br/wp-content/uploads/2018/05/marca_cde_cores_horizontal_tag_bl-2048x713.png';
   const logoCdeProxy = 'https://images.weserv.nl/?url=' + encodeURIComponent('casadosespelhos.com.br/wp-content/uploads/2018/05/marca_cde_cores_horizontal_tag_bl-2048x713.png');
   const logoDataUrl = await loadImageWithFallback(logoCdeUrl, logoCdeProxy);
@@ -1099,7 +1047,6 @@ async function downloadCertificate() {
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, W, H, 'F');
 
-  // Marca d'água
   if (logoDataUrl) {
     try {
       if (doc.setGState && doc.GState) {
@@ -1112,19 +1059,16 @@ async function downloadCertificate() {
     } catch (e) { /* sem marca d'água */ }
   }
 
-  // Faixas
   doc.setFillColor(...LARANJA); doc.rect(0, 0, W / 2, 8, 'F');
   doc.setFillColor(...VERMELHO); doc.rect(W / 2, 0, W / 2, 8, 'F');
   doc.setFillColor(...LARANJA); doc.rect(0, H - 8, W / 2, 8, 'F');
   doc.setFillColor(...VERMELHO); doc.rect(W / 2, H - 8, W / 2, 8, 'F');
 
-  // Bordas
   doc.setDrawColor(...LARANJA); doc.setLineWidth(0.8);
   doc.rect(12, 12, W - 24, H - 24);
   doc.setDrawColor(...VERMELHO); doc.setLineWidth(0.3);
   doc.rect(14, 14, W - 28, H - 28);
 
-  // Logo topo
   if (logoDataUrl) {
     const logoW = 90;
     const logoH = logoW * (713 / 2048);
@@ -1140,13 +1084,11 @@ async function downloadCertificate() {
     doc.text('desde 1978', W / 2, 38, { align: 'center' });
   }
 
-  // Etiqueta
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(...CINZA);
   doc.text('C D E   A C A D E M Y', W / 2, 60, { align: 'center' });
 
-  // Título
   doc.setFontSize(28);
   doc.setTextColor(...VERMELHO);
   doc.text('CERTIFICADO', W / 2, 73, { align: 'center' });
@@ -1156,19 +1098,16 @@ async function downloadCertificate() {
   doc.setTextColor(...CINZA);
   doc.text('DE CONCLUSÃO', W / 2, 80, { align: 'center' });
 
-  // Certificamos que
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
   doc.setTextColor(...GRAFITE);
   doc.text('Certificamos que', W / 2, 94, { align: 'center' });
 
-  // Nome
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
   doc.setTextColor(...GRAFITE);
   doc.text(nome, W / 2, 106, { align: 'center' });
 
-  // Cargo + Setor
   const cargo = currentProfile.position || '';
   const setor = currentProfile.sector || '';
   const partes = [];
@@ -1181,7 +1120,6 @@ async function downloadCertificate() {
     doc.text(partes.join('  •  '), W / 2, 113, { align: 'center' });
   }
 
-  // Concluiu
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
   doc.setTextColor(...GRAFITE);
@@ -1193,7 +1131,6 @@ async function downloadCertificate() {
   const courseTitle = course.title.length > 70 ? course.title.substring(0, 67) + '...' : course.title;
   doc.text(courseTitle, W / 2, 134, { align: 'center' });
 
-  // Parágrafo padrão
   const dateStr = new Date(completion.completed_at).toLocaleDateString('pt-BR');
   const hours = course.workload_hours || 1;
   doc.setFont('helvetica', 'normal');
@@ -1203,13 +1140,11 @@ async function downloadCertificate() {
   doc.text('na modalidade ONLINE, no período de ' + dateStr + ',', W / 2, 150, { align: 'center' });
   doc.text('com carga horária total de ' + hours + ' horas.', W / 2, 156, { align: 'center' });
 
-  // ID único
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(...VERMELHO);
   doc.text('Certificado nº: ' + completion.certificate_code, W / 2, 168, { align: 'center' });
 
-  // Assinatura
   const sigY = 180;
   doc.setDrawColor(...GRAFITE);
   doc.setLineWidth(0.4);
@@ -1222,7 +1157,6 @@ async function downloadCertificate() {
   doc.setTextColor(...CINZA_CLARO);
   doc.text('CDE Indústria de Vidros  •  CNPJ 84.544.246/0001-14', W / 2, sigY + 10, { align: 'center' });
 
-  // QR Code
   try {
     const qrContent = [
       'CDE ACADEMY',
@@ -1244,7 +1178,6 @@ async function downloadCertificate() {
     }
   } catch (e) { /* sem QR */ }
 
-  // Blindex vetorial
   const blindexSize = 24;
   const blindexX = W - 28 - blindexSize;
   const blindexY = H - 52;
@@ -1253,8 +1186,6 @@ async function downloadCertificate() {
   // ==========================================================
   // PÁGINA 2 — CONTEÚDO PROGRAMÁTICO
   // ==========================================================
-
-  // Busca módulos e aulas
   const { data: modsRaw } = await db
     .from('academy_modules')
     .select('*')
@@ -1271,13 +1202,10 @@ async function downloadCertificate() {
     modulesData.push({ title: m.title || '', lessons: lessonsRaw || [] });
   }
 
-  // Helper: desenha a moldura + cabeçalho de uma página de conteúdo
   function drawContentFrame(pageNum) {
-    // Fundo
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, W, H, 'F');
 
-    // Marca d'água
     if (logoDataUrl) {
       try {
         if (doc.setGState && doc.GState) {
@@ -1290,19 +1218,16 @@ async function downloadCertificate() {
       } catch (e) { /* silent */ }
     }
 
-    // Faixas
     doc.setFillColor(...LARANJA); doc.rect(0, 0, W / 2, 8, 'F');
     doc.setFillColor(...VERMELHO); doc.rect(W / 2, 0, W / 2, 8, 'F');
     doc.setFillColor(...LARANJA); doc.rect(0, H - 8, W / 2, 8, 'F');
     doc.setFillColor(...VERMELHO); doc.rect(W / 2, H - 8, W / 2, 8, 'F');
 
-    // Bordas
     doc.setDrawColor(...LARANJA); doc.setLineWidth(0.8);
     doc.rect(12, 12, W - 24, H - 24);
     doc.setDrawColor(...VERMELHO); doc.setLineWidth(0.3);
     doc.rect(14, 14, W - 28, H - 28);
 
-    // Logo topo (menor)
     if (logoDataUrl) {
       const logoW = 60;
       const logoH = logoW * (713 / 2048);
@@ -1314,30 +1239,25 @@ async function downloadCertificate() {
       doc.text('CDE | CASA DOS ESPELHOS', W / 2, 28, { align: 'center' });
     }
 
-    // Etiqueta CDE ACADEMY
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(...CINZA);
     doc.text('C D E   A C A D E M Y', W / 2, 42, { align: 'center' });
 
-    // Título
     doc.setFontSize(20);
     doc.setTextColor(...VERMELHO);
     doc.text('CONTEÚDO PROGRAMÁTICO', W / 2, 54, { align: 'center' });
 
-    // Nome do curso
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
     doc.setTextColor(...CINZA);
     const ct = course.title.length > 90 ? course.title.substring(0, 87) + '...' : course.title;
     doc.text(ct, W / 2, 61, { align: 'center' });
 
-    // Linha decorativa
     doc.setDrawColor(...LARANJA);
     doc.setLineWidth(0.5);
     doc.line(W / 2 - 50, 65, W / 2 + 50, 65);
 
-    // Rodapé
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...CINZA_CLARO);
@@ -1357,21 +1277,17 @@ async function downloadCertificate() {
     return drawContentFrame(currentPageNum);
   }
 
-  // Se há módulos, adiciona a página 2
   if (modulesData.length > 0) {
     y = newContentPage();
-
     const contentBottom = H - 25;
 
     for (let mi = 0; mi < modulesData.length; mi++) {
       const mod = modulesData[mi];
 
-      // Cabeçalho do módulo precisa caber
       if (y + 11 > contentBottom) {
         y = newContentPage();
       }
 
-      // Cabeçalho do módulo
       doc.setFillColor(255, 245, 235);
       doc.roundedRect(25, y - 5, W - 50, 9, 1.5, 1.5, 'F');
       doc.setFont('helvetica', 'bold');
@@ -1385,7 +1301,6 @@ async function downloadCertificate() {
       doc.text(modTitle, 55, y + 1);
       y += 11;
 
-      // Aulas
       for (let li = 0; li < mod.lessons.length; li++) {
         if (y > contentBottom) {
           y = newContentPage();
@@ -1395,24 +1310,20 @@ async function downloadCertificate() {
         const lessonNum = (mi + 1) + '.' + (li + 1);
         const typeLabel = { pdf: 'PDF', video: 'Vídeo', slides: 'Slides', image: 'Imagem', text: 'Texto' }[lesson.content_type] || '';
 
-        // Bullet
         doc.setFillColor(...CINZA_CLARO);
         doc.circle(35, y - 1, 0.8, 'F');
 
-        // Número
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(8.5);
         doc.setTextColor(...CINZA);
         doc.text(lessonNum, 40, y);
 
-        // Título
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9.5);
         doc.setTextColor(...GRAFITE);
         const lessonTitle = lesson.title.length > 80 ? lesson.title.substring(0, 77) + '...' : lesson.title;
         doc.text(lessonTitle, 52, y);
 
-        // Tipo à direita
         doc.setFontSize(7);
         if (lesson.has_quiz) {
           doc.setTextColor(...LARANJA);
@@ -1425,17 +1336,17 @@ async function downloadCertificate() {
         y += 7;
       }
 
-      y += 4; // espaçamento entre módulos
+      y += 4;
     }
   }
 
-  // ===================== SALVAR =====================
   const safeTitle = course.title.replace(/[^a-zA-Z0-9]/g, '_');
   const safeName = nome.replace(/[^a-zA-Z0-9]/g, '_');
   const fn = 'Certificado_' + safeTitle + '_' + safeName + '.pdf';
   doc.save(fn);
   showMessage('Certificado gerado! 📥', 'success');
 }
+
 // ==================== PAINEL DE GESTÃO ====================
 function renderManageCourses() {
   const courses = allCourses;
@@ -2221,8 +2132,6 @@ async function renderAnalyticsView() {
 // ==================== DASHBOARD EXECUTIVO =========================
 // ==================================================================
 
-let dashboardChartInstance = null;
-
 async function renderDashboard() {
   const main = document.getElementById('main-content');
   main.innerHTML = '<div class="state-box">Carregando dashboard executivo…</div>';
@@ -2432,9 +2341,6 @@ async function renderDashboard() {
 
     const trimLabel = curQ + 'º TRI ' + curYear;
 
-    // ================================================================
-    // ==== RENDER (usando classes do Analytics pra dark mode) ====
-    // ================================================================
     main.innerHTML = `
       <div class="dash-header">
         <div>
@@ -2569,6 +2475,81 @@ function renderDashAlert(a) {
     </div>
   `;
 }
+
+function initDashEvolucaoChart(meses) {
+  if (typeof Chart === 'undefined') {
+    console.warn('Chart.js não carregado.');
+    return;
+  }
+  const canvas = document.getElementById('dashEvolucaoChart');
+  if (!canvas) return;
+
+  if (dashboardChartInstance) {
+    try { dashboardChartInstance.destroy(); } catch (e) {}
+  }
+
+  const ctx = canvas.getContext('2d');
+  dashboardChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: meses.map(m => m.label),
+      datasets: [
+        {
+          label: 'Pontos acumulados',
+          data: meses.map(m => m.pontos),
+          borderColor: '#E87722',
+          backgroundColor: 'rgba(232, 119, 34, 0.08)',
+          tension: 0.4,
+          fill: true,
+          borderWidth: 3,
+          pointRadius: 4,
+          pointBackgroundColor: '#E87722',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2
+        },
+        {
+          label: 'Cursos concluídos',
+          data: meses.map(m => m.cursos),
+          borderColor: '#7C3AED',
+          backgroundColor: 'rgba(124, 58, 237, 0.05)',
+          tension: 0.4,
+          fill: true,
+          borderWidth: 3,
+          pointRadius: 4,
+          pointBackgroundColor: '#7C3AED',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            usePointStyle: true,
+            padding: 16,
+            font: { size: 11, weight: '600' }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: '#F0F1F3' },
+          ticks: { font: { size: 10 }, color: '#6D6E71' }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 10 }, color: '#6D6E71' }
+        }
+      }
+    }
+  });
+}
+
 // ==================== INIT ====================
 db.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') window.location.href = PDI_URL; });
 
