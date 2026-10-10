@@ -263,7 +263,7 @@ function renderView(view) {
     case 'report':       main.innerHTML = renderReport(); break;
     case 'manage':       main.innerHTML = renderManageCourses(); break;
     case 'analytics':    renderAnalyticsView(); break;
-    case 'dashboard':    renderDashboard(); break; 
+    case 'dashboard':    (); break; 
     default:             main.innerHTML = renderHome();
   }
 }
@@ -2228,7 +2228,6 @@ async function renderDashboard() {
   main.innerHTML = '<div class="state-box">Carregando dashboard executivo…</div>';
 
   try {
-    // ==== BUSCA DADOS ====
     const [coursesRes, enrollsRes, completionsRes, viewsRes, profilesRes, goalsRes, certsRes] = await Promise.all([
       db.from('academy_courses').select('id, title, workload_hours, sector, is_published'),
       db.from('academy_enrollments').select('user_id, course_id, status, assigned_at'),
@@ -2247,35 +2246,26 @@ async function renderDashboard() {
     const goals       = goalsRes.data || [];
     const certsPdi    = certsRes.data || [];
 
-    // ==== MAPA DE PERFIS ====
     const profileMap = {};
     profiles.forEach(p => { profileMap[p.id] = p; });
 
-    // ==== COLABORADORES ATIVOS ====
     const colaboradores = profiles.filter(p => {
       const r = (p.role || '').toLowerCase();
       return r === 'employee' || r === 'colaborador' || r === 'supervisor';
     });
 
-    // ==== PONTOS POR USUÁRIO ====
     const ptsPorUser = {};
     certsPdi.forEach(c => {
-      if (c.status === 'approved') {
-        ptsPorUser[c.user_id] = (ptsPorUser[c.user_id] || 0) + (c.points_awarded || 0);
-      }
+      if (c.status === 'approved') ptsPorUser[c.user_id] = (ptsPorUser[c.user_id] || 0) + (c.points_awarded || 0);
     });
 
     const pontosTotais = Object.values(ptsPorUser).reduce((s, x) => s + x, 0);
     const mediaPorPessoa = colaboradores.length > 0 ? Math.round(pontosTotais / colaboradores.length) : 0;
 
-    // ==== ADESÃO ====
     const usersComCertAprovado = new Set();
     certsPdi.forEach(c => { if (c.status === 'approved') usersComCertAprovado.add(c.user_id); });
-    const taxaAdesao = colaboradores.length > 0
-      ? Math.round((usersComCertAprovado.size / colaboradores.length) * 100)
-      : 0;
+    const taxaAdesao = colaboradores.length > 0 ? Math.round((usersComCertAprovado.size / colaboradores.length) * 100) : 0;
 
-    // ==== HORAS DE TREINAMENTO ====
     const courseMap = {};
     courses.forEach(c => { courseMap[c.id] = c; });
     let horasTreinamento = 0;
@@ -2284,7 +2274,6 @@ async function renderDashboard() {
       if (course) horasTreinamento += (course.workload_hours || 1);
     });
 
-    // ==== TRIMESTRE ATUAL E ANTERIOR ====
     const now = new Date();
     const curQ = Math.floor(now.getMonth() / 3) + 1;
     const curYear = now.getFullYear();
@@ -2293,13 +2282,11 @@ async function renderDashboard() {
 
     const startOfQ = (q, y) => new Date(y, (q - 1) * 3, 1);
     const endOfQ = (q, y) => new Date(y, q * 3, 0, 23, 59, 59);
-
     const curStart = startOfQ(curQ, curYear);
     const curEnd = now;
     const prevStart = startOfQ(prevQ, prevYear);
     const prevEnd = endOfQ(prevQ, prevYear);
 
-    // ==== PONTOS POR TRIMESTRE ====
     let pontosCur = 0, pontosPrev = 0, certsCur = 0, certsPrev = 0;
     certsPdi.forEach(c => {
       if (c.status !== 'approved' || !c.validated_at) return;
@@ -2308,7 +2295,6 @@ async function renderDashboard() {
       else if (dt >= prevStart && dt <= prevEnd) { pontosPrev += c.points_awarded || 0; certsPrev++; }
     });
 
-    // ==== CURSOS POR TRIMESTRE ====
     let cursosCur = 0, cursosPrev = 0;
     completions.forEach(c => {
       if (!c.completed_at) return;
@@ -2317,7 +2303,6 @@ async function renderDashboard() {
       else if (dt >= prevStart && dt <= prevEnd) cursosPrev++;
     });
 
-    // ==== EVOLUÇÃO MENSAL (6 meses) ====
     const meses = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(curYear, now.getMonth() - i, 1);
@@ -2329,7 +2314,6 @@ async function renderDashboard() {
         cursos: 0
       });
     }
-
     certsPdi.forEach(c => {
       if (c.status !== 'approved' || !c.validated_at) return;
       const dt = new Date(c.validated_at);
@@ -2343,16 +2327,15 @@ async function renderDashboard() {
       if (m) m.cursos++;
     });
 
-    // ==== SETORES ====
     const normalizeSetor = (s) => {
       if (!s) return null;
       return String(s).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
     };
 
     const setoresDef = [
-      { key: 'COMERCIAL',      label: 'Comercial',      icon: '💼', cor: '#2563EB', corBg: '#E7EEFC' },
-      { key: 'PRODUCAO',       label: 'Produção',       icon: '🏭', cor: '#0E7490', corBg: '#E0F4F8' },
-      { key: 'ADMINISTRATIVO', label: 'Administrativo', icon: '🏢', cor: '#7C3AED', corBg: '#F0EAFB' }
+      { key: 'COMERCIAL',      label: 'Comercial',      icon: '💼', cls: 'comercial' },
+      { key: 'PRODUCAO',       label: 'Produção',       icon: '🏭', cls: 'producao' },
+      { key: 'ADMINISTRATIVO', label: 'Administrativo', icon: '🏢', cls: 'administrativo' }
     ];
 
     setoresDef.forEach(s => {
@@ -2366,20 +2349,17 @@ async function renderDashboard() {
     setoresDef.sort((a, b) => b.pontos - a.pontos);
     const maxPontosSetor = Math.max(...setoresDef.map(s => s.pontos), 1);
 
-    // ==== TOP 5 ====
     const ranking = colaboradores.map(p => {
       const setorData = setoresDef.find(s => s.key === normalizeSetor(p.sector));
       return {
         id: p.id,
         nome: p.full_name || p.email,
         cargo: p.position || '',
-        setor: p.sector || '',
         setorLabel: setorData ? setorData.label : (p.sector || '—'),
         pontos: ptsPorUser[p.id] || 0
       };
     }).sort((a, b) => b.pontos - a.pontos).slice(0, 5);
 
-    // ==== TOP CURSOS ====
     const cursosStats = courses.map(c => {
       const enr = enrolls.filter(e => e.course_id === c.id).length;
       const comp = completions.filter(x => x.course_id === c.id).length;
@@ -2387,10 +2367,8 @@ async function renderDashboard() {
       return { curso: c, matriculas: enr, conclusoes: comp, taxa };
     }).filter(x => x.matriculas > 0).sort((a, b) => b.taxa - a.taxa).slice(0, 4);
 
-    // ==== ALERTAS ====
     const alertas = [];
     const agora = Date.now();
-
     const pendentesAntigos = certsPdi.filter(c => {
       if (c.status !== 'pending' || !c.submitted_at) return false;
       const dias = (agora - new Date(c.submitted_at).getTime()) / (1000 * 60 * 60 * 24);
@@ -2422,47 +2400,24 @@ async function renderDashboard() {
         desc: 'Considere campanha de incentivo'
       });
     }
-
     if (alertas.length === 0) {
-      alertas.push({
-        tipo: 'ok', icon: '✅',
-        titulo: 'Nenhum ponto crítico identificado',
-        desc: 'Todos os indicadores estão saudáveis'
-      });
+      alertas.push({ tipo: 'ok', icon: '✅', titulo: 'Nenhum ponto crítico identificado', desc: 'Todos os indicadores estão saudáveis' });
     }
 
-    // ==== DESTAQUES ====
     const destaques = [];
     if (setoresDef[0] && setoresDef[0].pontos > 0) {
-      destaques.push({
-        tipo: 'ok', icon: '🏆',
-        titulo: 'Setor ' + setoresDef[0].label + ' lidera com ' + setoresDef[0].pontos + ' pts',
-        desc: setoresDef[0].adesao + '% de adesão'
-      });
+      destaques.push({ tipo: 'ok', icon: '🏆', titulo: 'Setor ' + setoresDef[0].label + ' lidera com ' + setoresDef[0].pontos + ' pts', desc: setoresDef[0].adesao + '% de adesão' });
     }
     if (ranking[0] && ranking[0].pontos > 0) {
-      destaques.push({
-        tipo: 'ok', icon: '⭐',
-        titulo: ranking[0].nome + ' é o destaque do trimestre',
-        desc: ranking[0].pontos + ' pontos acumulados'
-      });
+      destaques.push({ tipo: 'ok', icon: '⭐', titulo: ranking[0].nome + ' é o destaque do trimestre', desc: ranking[0].pontos + ' pontos acumulados' });
     }
     if (cursosStats[0] && cursosStats[0].taxa > 70) {
-      destaques.push({
-        tipo: 'ok', icon: '🎓',
-        titulo: '"' + cursosStats[0].curso.title + '" com ' + cursosStats[0].taxa + '% de conclusão',
-        desc: cursosStats[0].conclusoes + ' de ' + cursosStats[0].matriculas + ' alunos'
-      });
+      destaques.push({ tipo: 'ok', icon: '🎓', titulo: '"' + cursosStats[0].curso.title + '" com ' + cursosStats[0].taxa + '% de conclusão', desc: cursosStats[0].conclusoes + ' de ' + cursosStats[0].matriculas + ' alunos' });
     }
     if (destaques.length === 0) {
-      destaques.push({
-        tipo: 'info', icon: '📊',
-        titulo: 'Comece a incentivar o uso do PDI',
-        desc: 'Ainda sem dados suficientes para destaques'
-      });
+      destaques.push({ tipo: 'info', icon: '📊', titulo: 'Comece a incentivar o uso do PDI', desc: 'Ainda sem dados suficientes para destaques' });
     }
 
-    // ==== TREND HELPERS ====
     const trend = (cur, prev) => {
       if (prev === 0 && cur === 0) return { cls: 'flat', txt: '→ estável' };
       if (prev === 0) return { cls: 'up', txt: '↑ novo' };
@@ -2473,140 +2428,109 @@ async function renderDashboard() {
       return { cls: 'flat', txt: '→ estável' };
     };
     const tPontos = trend(pontosCur, pontosPrev);
-    const tCerts = trend(certsCur, certsPrev);
     const tCursos = trend(cursosCur, cursosPrev);
 
     const trimLabel = curQ + 'º TRI ' + curYear;
 
-    // ==== CORES DOS SETORES ====
-    const posClasses = ['gold', 'silver', 'bronze'];
-    const posColors = ['linear-gradient(135deg,#FFD86B,#E8A800)', 'linear-gradient(135deg,#E2E5EA,#B7BCC4)', 'linear-gradient(135deg,#E3A277,#B57142)'];
-    const posTextColors = ['#5B3D00', '#3E4147', '#4A2A10'];
-
     // ================================================================
-    // ==== RENDER ====
+    // ==== RENDER (usando classes do Analytics pra dark mode) ====
     // ================================================================
     main.innerHTML = `
-
-      <!-- HEADER -->
-      <div style="background: linear-gradient(135deg, #4C1D95 0%, #7C3AED 55%, #A855F7 100%); border-radius: 18px; padding: 28px 32px; color: #fff; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; box-shadow: 0 12px 32px rgba(76,29,149,0.25); position: relative; overflow: hidden;">
-        <div style="position: relative; z-index: 1;">
-          <h1 style="font-size: 1.6rem; font-weight: 800; margin-bottom: 4px;">📊 Dashboard Executivo</h1>
-          <p style="font-size: 0.9rem; opacity: 0.9;">Visão estratégica do PDI + CDE Academy</p>
+      <div class="dash-header">
+        <div>
+          <h1>📊 Dashboard Executivo</h1>
+          <p>Visão estratégica do PDI + CDE Academy</p>
         </div>
-        <div style="position: relative; z-index: 1; font-size: 0.8rem; background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 20px; font-weight: 700; letter-spacing: 0.4px;">
-          📅 ${trimLabel}
-        </div>
+        <div class="dash-periodo">📅 ${trimLabel}</div>
       </div>
 
-      <!-- KPIs -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px;">
-        ${renderDashKpi('👥', colaboradores.length, 'Colaboradores ativos', 'info')}
+      <div class="stats-grid">
+        ${renderDashKpi('👥', colaboradores.length, 'Colaboradores ativos', null)}
         ${renderDashKpi('🎯', taxaAdesao + '%', 'Taxa de adesão', tPontos)}
         ${renderDashKpi('⭐', pontosTotais.toLocaleString('pt-BR'), 'Pontos totais', tPontos)}
-        ${renderDashKpi('📈', mediaPorPessoa, 'Média por pessoa', 'flat')}
+        ${renderDashKpi('📈', mediaPorPessoa, 'Média por pessoa', null)}
         ${renderDashKpi('🎓', horasTreinamento + 'h', 'Horas de treinamento', tCursos)}
       </div>
 
-      <!-- ROW 1: Evolução + Setores -->
-      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px;">
-        <div style="background: #fff; border-radius: 14px; padding: 22px; border: 1px solid #E9EAEE; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-          <h2 style="font-size: 1rem; font-weight: 800; color: #1F1F2E; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid #E9EAEE;">
-            📈 Evolução mensal
-            <span style="margin-left: auto; font-size: 0.7rem; background: #F5F6FA; padding: 3px 8px; border-radius: 20px; color: #6D6E71; font-weight: 700;">Últimos 6 meses</span>
-          </h2>
+      <div class="dash-row-2">
+        <div class="card">
+          <h2>📈 Evolução mensal <span class="badge-pill none" style="margin-left:auto; font-size:0.7rem;">Últimos 6 meses</span></h2>
           <div style="position: relative; height: 240px;"><canvas id="dashEvolucaoChart"></canvas></div>
         </div>
 
-        <div style="background: #fff; border-radius: 14px; padding: 22px; border: 1px solid #E9EAEE; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-          <h2 style="font-size: 1rem; font-weight: 800; color: #1F1F2E; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid #E9EAEE;">
-            🎯 Comparativo de setores
-          </h2>
-          ${setoresDef.map((s, i) => `
-            <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #F0F1F3;">
-              <div style="width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.7rem; flex-shrink: 0; background: ${posColors[i] || '#F0F1F3'}; color: ${posTextColors[i] || '#6D6E71'};">${i + 1}</div>
-              <div style="width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; background: ${s.corBg}; color: ${s.cor};">${s.icon}</div>
-              <div style="flex: 1; min-width: 0;">
-                <div style="font-weight: 700; font-size: 0.88rem; margin-bottom: 2px;">${s.label}</div>
-                <div style="font-size: 0.72rem; color: #6D6E71;">${s.total} colab. · ${s.adesao}% adesão</div>
-                <div style="height: 6px; background: #F0F1F3; border-radius: 3px; overflow: hidden; margin-top: 6px;">
-                  <div style="height: 100%; width: ${Math.round((s.pontos / maxPontosSetor) * 100)}%; background: ${s.cor}; border-radius: 3px;"></div>
+        <div class="card">
+          <h2>🎯 Comparativo de setores</h2>
+          ${setoresDef.map((s, i) => {
+            const posClasses = ['gold', 'silver', 'bronze'];
+            const barWidth = Math.round((s.pontos / maxPontosSetor) * 100);
+            return `
+              <div class="dash-setor-row">
+                <div class="dash-setor-pos ${posClasses[i] || ''}">${i + 1}</div>
+                <div class="dash-setor-icon ${s.cls}">${s.icon}</div>
+                <div class="dash-setor-info">
+                  <div class="dash-setor-nome">${s.label}</div>
+                  <div class="dash-setor-meta">${s.total} colab. · ${s.adesao}% adesão</div>
+                  <div class="dash-setor-bar"><div class="dash-setor-bar-fill ${s.cls}" style="width: ${barWidth}%"></div></div>
                 </div>
+                <div class="dash-setor-pontos">${s.pontos} pts</div>
               </div>
-              <div style="font-weight: 800; font-size: 1rem; white-space: nowrap; min-width: 70px; text-align: right;">${s.pontos} pts</div>
-            </div>
-          `).join('')}
+            `;
+          }).join('')}
           ${setoresDef[0] && setoresDef[0].pontos > 0 ? `
-            <div style="background: linear-gradient(135deg, #FFF9F3, #FFF3E6); border-left: 4px solid #E87722; border-radius: 10px; padding: 14px 18px; margin-top: 16px; font-size: 0.82rem; color: #414042; line-height: 1.6;">
-              💡 O setor <strong style="color: #D4650F;">${setoresDef[0].label}</strong> concentra <strong style="color: #D4650F;">${pontosTotais > 0 ? Math.round((setoresDef[0].pontos / pontosTotais) * 100) : 0}%</strong> dos pontos da empresa.
+            <div class="dash-insight">
+              💡 O setor <strong>${setoresDef[0].label}</strong> concentra <strong>${pontosTotais > 0 ? Math.round((setoresDef[0].pontos / pontosTotais) * 100) : 0}%</strong> dos pontos da empresa.
             </div>
           ` : ''}
         </div>
       </div>
 
-      <!-- ROW 2: Top 5 + Cursos -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-        <div style="background: #fff; border-radius: 14px; padding: 22px; border: 1px solid #E9EAEE; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-          <h2 style="font-size: 1rem; font-weight: 800; color: #1F1F2E; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #E9EAEE; display: flex; align-items: center;">
-            🏆 Top 5 colaboradores
-            <span style="margin-left: auto; font-size: 0.7rem; background: #F5F6FA; padding: 3px 8px; border-radius: 20px; color: #6D6E71; font-weight: 700;">${trimLabel}</span>
-          </h2>
-          ${ranking.length === 0 ? '<p style="color: #6D6E71; font-size: 0.88rem;">Nenhum dado disponível ainda.</p>' : ranking.map((r, i) => {
+      <div class="dash-row-half">
+        <div class="card">
+          <h2>🏆 Top 5 colaboradores <span class="badge-pill none" style="margin-left:auto; font-size:0.7rem;">${trimLabel}</span></h2>
+          ${ranking.length === 0 ? '<p style="color:#6D6E71; font-size:0.88rem;">Nenhum dado disponível ainda.</p>' : ranking.map((r, i) => {
             const medals = ['🥇', '🥈', '🥉', '4', '5'];
             const iniciais = r.nome.trim().split(/\s+/).map(x => x[0]).slice(0, 2).join('').toUpperCase();
             return `
-              <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #F0F1F3;">
-                <div style="font-size: 1.2rem; flex-shrink: 0; width: 26px; text-align: center;">${medals[i]}</div>
-                <div style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #E87722, #C8102E); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.85rem; flex-shrink: 0; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(200,16,46,0.2);">${iniciais}</div>
-                <div style="flex: 1; min-width: 0;">
-                  <div style="font-weight: 700; font-size: 0.88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(r.nome)}</div>
-                  <div style="font-size: 0.72rem; color: #6D6E71; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(r.setorLabel)}${r.cargo ? ' · ' + escapeHtml(r.cargo) : ''}</div>
+              <div class="dash-top-item">
+                <div class="dash-top-medal">${medals[i]}</div>
+                <div class="dash-top-avatar">${iniciais}</div>
+                <div class="dash-top-info">
+                  <div class="dash-top-nome">${escapeHtml(r.nome)}</div>
+                  <div class="dash-top-setor">${escapeHtml(r.setorLabel)}${r.cargo ? ' · ' + escapeHtml(r.cargo) : ''}</div>
                 </div>
-                <div style="font-weight: 800; font-size: 0.95rem; color: #D4650F; white-space: nowrap;">${r.pontos} pts</div>
+                <div class="dash-top-pts">${r.pontos} pts</div>
               </div>
             `;
           }).join('')}
         </div>
 
-        <div style="background: #fff; border-radius: 14px; padding: 22px; border: 1px solid #E9EAEE; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-          <h2 style="font-size: 1rem; font-weight: 800; color: #1F1F2E; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #E9EAEE; display: flex; align-items: center;">
-            📚 Top cursos da Academy
-            <span style="margin-left: auto; font-size: 0.7rem; background: #F5F6FA; padding: 3px 8px; border-radius: 20px; color: #6D6E71; font-weight: 700;">Por conclusão</span>
-          </h2>
-          ${cursosStats.length === 0 ? '<p style="color: #6D6E71; font-size: 0.88rem;">Nenhum curso com matrículas ainda.</p>' : cursosStats.map(cs => `
-            <div style="padding: 10px 0; border-bottom: 1px solid #F0F1F3;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.85rem;">
-                <span style="font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 8px;">${escapeHtml(cs.curso.title)}</span>
-                <span style="font-weight: 800; color: #158A49; white-space: nowrap;">${cs.taxa}%</span>
+        <div class="card">
+          <h2>📚 Top cursos da Academy <span class="badge-pill none" style="margin-left:auto; font-size:0.7rem;">Por conclusão</span></h2>
+          ${cursosStats.length === 0 ? '<p style="color:#6D6E71; font-size:0.88rem;">Nenhum curso com matrículas ainda.</p>' : cursosStats.map(cs => `
+            <div class="dash-curso-row">
+              <div class="dash-curso-header">
+                <span class="dash-curso-nome">${escapeHtml(cs.curso.title)}</span>
+                <span class="dash-curso-pct">${cs.taxa}%</span>
               </div>
-              <div style="font-size: 0.72rem; color: #6D6E71; margin-bottom: 6px;">${cs.conclusoes} de ${cs.matriculas} alunos concluíram</div>
-              <div style="height: 5px; background: #F0F1F3; border-radius: 3px; overflow: hidden;">
-                <div style="height: 100%; width: ${cs.taxa}%; background: linear-gradient(90deg, #E87722, #C8102E); border-radius: 3px;"></div>
-              </div>
+              <div class="dash-curso-sub">${cs.conclusoes} de ${cs.matriculas} alunos concluíram</div>
+              <div class="dash-curso-bar"><div class="dash-curso-bar-fill" style="width: ${cs.taxa}%"></div></div>
             </div>
           `).join('')}
         </div>
       </div>
 
-      <!-- ROW 3: Alertas + Destaques -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-        <div style="background: #fff; border-radius: 14px; padding: 22px; border: 1px solid #E9EAEE; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-          <h2 style="font-size: 1rem; font-weight: 800; color: #1F1F2E; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #E9EAEE;">
-            ⚠️ Pontos de atenção
-          </h2>
+      <div class="dash-row-half">
+        <div class="card">
+          <h2>⚠️ Pontos de atenção</h2>
           ${alertas.map(a => renderDashAlert(a)).join('')}
         </div>
-
-        <div style="background: #fff; border-radius: 14px; padding: 22px; border: 1px solid #E9EAEE; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-          <h2 style="font-size: 1rem; font-weight: 800; color: #1F1F2E; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #E9EAEE;">
-            ✅ Destaques positivos
-          </h2>
+        <div class="card">
+          <h2>✅ Destaques positivos</h2>
           ${destaques.map(a => renderDashAlert(a)).join('')}
         </div>
       </div>
     `;
 
-    // ==== CHART ====
     setTimeout(() => initDashEvolucaoChart(meses), 100);
 
   } catch (e) {
@@ -2619,115 +2543,32 @@ async function renderDashboard() {
 
 function renderDashKpi(icon, value, label, trend) {
   let trendHtml = '';
-  if (typeof trend === 'object' && trend.cls) {
+  if (trend && trend.cls) {
     const bg = trend.cls === 'up' ? '#E6F7EE' : trend.cls === 'down' ? '#FDE8EB' : '#F0F1F3';
     const fg = trend.cls === 'up' ? '#158A49' : trend.cls === 'down' ? '#C8102E' : '#6D6E71';
     trendHtml = `<div style="margin-top: 8px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 20px; background: ${bg}; color: ${fg};">${trend.txt}</div>`;
   }
   return `
-    <div style="background: #fff; border-radius: 14px; padding: 20px; border: 1px solid #E9EAEE; box-shadow: 0 2px 8px rgba(0,0,0,0.04); transition: transform 0.15s;">
-      <div style="font-size: 1.4rem; margin-bottom: 8px;">${icon}</div>
-      <div style="font-size: 2rem; font-weight: 800; line-height: 1; color: #1F1F2E; margin-bottom: 6px;">${value}</div>
-      <div style="font-size: 0.78rem; color: #6D6E71; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px;">${label}</div>
+    <div class="stat-card">
+      <div class="stat-icon">${icon}</div>
+      <div class="stat-value">${value}</div>
+      <div class="stat-label">${label}</div>
       ${trendHtml}
     </div>
   `;
 }
 
 function renderDashAlert(a) {
-  const corMap = {
-    warn:  { bg: '#FFF4E5', fg: '#B35A00' },
-    info:  { bg: '#E7EEFC', fg: '#2563EB' },
-    alert: { bg: '#FDE8EB', fg: '#C8102E' },
-    ok:    { bg: '#E6F7EE', fg: '#158A49' }
-  };
-  const cores = corMap[a.tipo] || corMap.info;
   return `
-    <div style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid #F0F1F3;">
-      <div style="width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; flex-shrink: 0; background: ${cores.bg}; color: ${cores.fg};">${a.icon}</div>
-      <div style="flex: 1;">
-        <div style="font-weight: 700; font-size: 0.85rem; margin-bottom: 2px;">${escapeHtml(a.titulo)}</div>
-        <div style="font-size: 0.75rem; color: #6D6E71;">${escapeHtml(a.desc)}</div>
+    <div class="dash-alert">
+      <div class="dash-alert-icon ${a.tipo}">${a.icon}</div>
+      <div class="dash-alert-info">
+        <div class="dash-alert-titulo">${escapeHtml(a.titulo)}</div>
+        <div class="dash-alert-desc">${escapeHtml(a.desc)}</div>
       </div>
     </div>
   `;
 }
-
-function initDashEvolucaoChart(meses) {
-  if (typeof Chart === 'undefined') {
-    console.warn('Chart.js não carregado.');
-    return;
-  }
-  const canvas = document.getElementById('dashEvolucaoChart');
-  if (!canvas) return;
-
-  // Destroi gráfico anterior se existir
-  if (dashboardChartInstance) {
-    try { dashboardChartInstance.destroy(); } catch (e) {}
-  }
-
-  const ctx = canvas.getContext('2d');
-  dashboardChartInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: meses.map(m => m.label),
-      datasets: [
-        {
-          label: 'Pontos acumulados',
-          data: meses.map(m => m.pontos),
-          borderColor: '#E87722',
-          backgroundColor: 'rgba(232, 119, 34, 0.08)',
-          tension: 0.4,
-          fill: true,
-          borderWidth: 3,
-          pointRadius: 4,
-          pointBackgroundColor: '#E87722',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2
-        },
-        {
-          label: 'Cursos concluídos',
-          data: meses.map(m => m.cursos),
-          borderColor: '#7C3AED',
-          backgroundColor: 'rgba(124, 58, 237, 0.05)',
-          tension: 0.4,
-          fill: true,
-          borderWidth: 3,
-          pointRadius: 4,
-          pointBackgroundColor: '#7C3AED',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: {
-            usePointStyle: true,
-            padding: 16,
-            font: { size: 11, weight: '600' }
-          }
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          grid: { color: '#F0F1F3' },
-          ticks: { font: { size: 10 }, color: '#6D6E71' }
-        },
-        x: {
-          grid: { display: false },
-          ticks: { font: { size: 10 }, color: '#6D6E71' }
-        }
-      }
-    }
-  });
-}
-
 // ==================== INIT ====================
 db.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') window.location.href = PDI_URL; });
 
