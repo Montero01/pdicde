@@ -263,7 +263,7 @@ function renderView(view) {
     case 'report':       main.innerHTML = renderReport(); break;
     case 'manage':       main.innerHTML = renderManageCourses(); break;
     case 'analytics':    renderAnalyticsView(); break;
-    case 'dashboard':    (); break; 
+    case 'dashboard':    renderDashboard(); break;
     default:             main.innerHTML = renderHome();
   }
 }
