@@ -264,6 +264,8 @@ function renderView(view) {
     case 'manage':       main.innerHTML = renderManageCourses(); break;
     case 'analytics':    renderAnalyticsView(); break;
     case 'dashboard':    renderDashboard(); break;
+    case 'points':       renderPointsManagement(); break;
+    case 'prizes':       renderPrizesView(); break;
     default:             main.innerHTML = renderHome();
   }
 }
@@ -316,9 +318,10 @@ async function loadUser() {
   const sectorEl = document.getElementById('user-sector');
   if (profile.sector) { sectorEl.textContent = profile.sector; sectorEl.classList.remove('hidden'); }
 
-  if (canManage) {
+    if (canManage) {
     document.getElementById('nav-manage').classList.remove('hidden');
     document.getElementById('nav-analytics').classList.remove('hidden');
+    document.getElementById('nav-points').classList.remove('hidden');
   }
 
   // Dashboard executivo — somente Diretoria/Master
@@ -331,6 +334,7 @@ async function loadUser() {
   await loadCourses();
   await loadMyEnrollments();
   await loadCompletions();
+  await loadNotifications();
 
   renderView('home');
 }
@@ -343,11 +347,45 @@ async function logout() {
 // ==================== DATA LOADING ====================
 async function loadTopbarPoints() {
   try {
-    const { data } = await db.from('certificates').select('points_awarded').eq('user_id', currentUser.id).eq('status', 'approved');
-    const total = (data || []).reduce((s, c) => s + (c.points_awarded || 0), 0);
+    const [pdiRes, acadRes, adjRes, redRes] = await Promise.all([
+      db.from('certificates').select('points_awarded').eq('user_id', currentUser.id).eq('status', 'approved'),
+      db.from('academy_completions').select('points_awarded').eq('user_id', currentUser.id),
+      db.from('academy_points_adjustments').select('points').eq('user_id', currentUser.id),
+      db.from('academy_redemptions').select('points_spent').eq('user_id', currentUser.id).neq('status', 'cancelled')
+    ]);
+    const pdi     = (pdiRes.data || []).reduce((s, c) => s + (c.points_awarded || 0), 0);
+    const acad    = (acadRes.data || []).reduce((s, c) => s + (c.points_awarded || 0), 0);
+    const adj     = (adjRes.data || []).reduce((s, c) => s + (c.points || 0), 0);
+    const gastos  = (redRes.data || []).reduce((s, c) => s + (c.points_spent || 0), 0);
+
+    const total = pdi + acad + adj - gastos;
     document.getElementById('topbar-points').textContent = `${total} pts`;
-  } catch (e) { document.getElementById('topbar-points').textContent = '0 pts'; }
+    document.getElementById('topbar-points').title =
+      `PDI: ${pdi} · Academy: ${acad} · Ajustes: ${adj} · Resgates: -${gastos}`;
+  } catch (e) {
+    document.getElementById('topbar-points').textContent = '0 pts';
+  }
 }
+
+/**
+ * Retorna o saldo detalhado de qualquer usuário.
+ * { disponivel, ganhoTotal, gasto, pdi, academy, ajustes, resgates }
+ */
+async function getUserPointsBalance(userId) {
+  const [pdiRes, acadRes, adjRes, redRes] = await Promise.all([
+    db.from('certificates').select('points_awarded').eq('user_id', userId).eq('status', 'approved'),
+    db.from('academy_completions').select('points_awarded').eq('user_id', userId),
+    db.from('academy_points_adjustments').select('points').eq('user_id', userId),
+    db.from('academy_redemptions').select('points_spent').eq('user_id', userId).neq('status', 'cancelled')
+  ]);
+  const pdi    = (pdiRes.data || []).reduce((s, c) => s + (c.points_awarded || 0), 0);
+  const acad   = (acadRes.data || []).reduce((s, c) => s + (c.points_awarded || 0), 0);
+  const ajustes = (adjRes.data || []).reduce((s, c) => s + (c.points || 0), 0);
+  const gasto  = (redRes.data || []).reduce((s, c) => s + (c.points_spent || 0), 0);
+  const ganhoTotal = pdi + acad + ajustes;
+  return { pdi, academy: acad, ajustes, resgates: gasto, ganhoTotal, disponivel: ganhoTotal - gasto };
+}
+
 async function loadCourses() {
   try {
     const { data, error } = await db.from('academy_courses').select('*').order('created_at', { ascending: false });
@@ -882,8 +920,10 @@ async function submitPlayerQuiz() {
     await db.from('academy_progress').upsert({
       user_id: currentUser.id,
       lesson_id: lesson.id,
-      completed_at: new Date().toISOString()
+      completed_at: new Date().toISOString(),
+      quiz_score: pct
     }, { onConflict: 'user_id,lesson_id' });
+
     await upsertLessonView(lesson.id, true);
     const btnComplete = document.getElementById('btn-complete-lesson');
     btnComplete.textContent = '✅ Aula concluída';
@@ -896,16 +936,64 @@ async function submitPlayerQuiz() {
 async function checkCourseCompletion() {
   if (!playerCourse) return;
   const progress = await calcCourseProgress(currentUser.id, playerCourse.id);
-  if (progress.done >= progress.total && progress.total > 0) {
-    const { data: existing } = await db.from('academy_completions').select('*').eq('user_id', currentUser.id).eq('course_id', playerCourse.id).maybeSingle();
-    if (!existing) {
-      const code = 'CDE-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-      await db.from('academy_completions').insert({ user_id: currentUser.id, course_id: playerCourse.id, certificate_code: code });
-      await db.from('academy_enrollments').update({ status: 'completed' }).eq('user_id', currentUser.id).eq('course_id', playerCourse.id);
-      await loadCompletions();
-      setTimeout(() => openCertificateModal(playerCourse.id), 700);
-    }
+  if (progress.done < progress.total || progress.total === 0) return;
+
+  const { data: existing } = await db
+    .from('academy_completions')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .eq('course_id', playerCourse.id)
+    .maybeSingle();
+
+  if (existing) return;
+
+  // Verifica se TODAS as aulas com quiz do curso foram 100%
+  const allLessons = await getAllLessonsOfCourse(playerCourse.id);
+  const quizLessons = allLessons.filter(l => l.has_quiz);
+
+  let allPerfect = quizLessons.length > 0;
+  if (quizLessons.length > 0) {
+    const { data: progData } = await db
+      .from('academy_progress')
+      .select('lesson_id, quiz_score')
+      .eq('user_id', currentUser.id)
+      .in('lesson_id', quizLessons.map(l => l.id));
+
+    const scoreMap = {};
+    (progData || []).forEach(p => { scoreMap[p.lesson_id] = p.quiz_score; });
+    allPerfect = quizLessons.every(l => scoreMap[l.id] === 100);
   }
+
+  const BASE_POINTS = 5;
+  const BONUS_PERFECT = 2;
+  const points = BASE_POINTS + (allPerfect ? BONUS_PERFECT : 0);
+
+  const code = 'CDE-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+
+  await db.from('academy_completions').insert({
+    user_id: currentUser.id,
+    course_id: playerCourse.id,
+    certificate_code: code,
+    points_awarded: points,
+    quiz_perfect: allPerfect
+  });
+
+  await db.from('academy_enrollments')
+    .update({ status: 'completed' })
+    .eq('user_id', currentUser.id)
+    .eq('course_id', playerCourse.id);
+
+  await loadCompletions();
+  await loadTopbarPoints();
+
+  showMessage(
+    allPerfect
+      ? `🎉 Curso concluído com 100%! +${points} pontos (5 + 2 de bônus).`
+      : `🎉 Curso concluído! +${points} pontos.`,
+    'success'
+  );
+
+  setTimeout(() => openCertificateModal(playerCourse.id), 700);
 }
 
 // ==================== CERTIFICADO ====================
@@ -1345,6 +1433,194 @@ async function downloadCertificate() {
   const fn = 'Certificado_' + safeTitle + '_' + safeName + '.pdf';
   doc.save(fn);
   showMessage('Certificado gerado! 📥', 'success');
+}
+
+// ==================== GESTÃO DE PONTOS ====================
+let pointsCache = [];
+let editingAdjustUserId = null;
+
+async function renderPointsManagement() {
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<div class="state-box">Carregando pontos…</div>';
+
+  try {
+    const [profilesRes, certsRes, acadRes, adjRes] = await Promise.all([
+      db.from('profiles').select('id, full_name, email, role, sector, position'),
+      db.from('certificates').select('user_id, points_awarded, status'),
+      db.from('academy_completions').select('user_id, points_awarded, quiz_perfect, completed_at'),
+      db.from('academy_points_adjustments').select('*').order('created_at', { ascending: false })
+    ]);
+
+    const profiles = profilesRes.data || [];
+    const certs    = certsRes.data   || [];
+    const acad     = acadRes.data    || [];
+    const adjs     = adjRes.data     || [];
+
+    // Agrega pontos por usuário
+    const byUser = {};
+    profiles.forEach(p => {
+      byUser[p.id] = {
+        id: p.id,
+        nome: p.full_name || p.email,
+        email: p.email,
+        cargo: p.position || '',
+        setor: p.sector || '—',
+        role: p.role,
+        pdi: 0, academy: 0, ajustes: 0, total: 0,
+        cursosConcluidos: 0,
+        perfeitos: 0
+      };
+    });
+
+    certs.forEach(c => {
+      if (c.status === 'approved' && byUser[c.user_id]) {
+        byUser[c.user_id].pdi += c.points_awarded || 0;
+      }
+    });
+    acad.forEach(c => {
+      if (byUser[c.user_id]) {
+        byUser[c.user_id].academy += c.points_awarded || 0;
+        byUser[c.user_id].cursosConcluidos++;
+        if (c.quiz_perfect) byUser[c.user_id].perfeitos++;
+      }
+    });
+    adjs.forEach(a => {
+      if (byUser[a.user_id]) byUser[a.user_id].ajustes += a.points || 0;
+    });
+
+    pointsCache = Object.values(byUser).map(u => {
+      u.total = u.pdi + u.academy + u.ajustes;
+      return u;
+    });
+
+    // KPIs globais
+    const totalEmpresa = pointsCache.reduce((s, u) => s + u.total, 0);
+    const totalPDI     = pointsCache.reduce((s, u) => s + u.pdi, 0);
+    const totalAcademy = pointsCache.reduce((s, u) => s + u.academy, 0);
+    const totalAjustes = pointsCache.reduce((s, u) => s + u.ajustes, 0);
+    const media = pointsCache.length > 0 ? Math.round(totalEmpresa / pointsCache.length) : 0;
+
+    const ranking = [...pointsCache].sort((a, b) => b.total - a.total);
+
+    main.innerHTML = `
+      <div class="section-header">
+        <h2>⭐ Gerenciar Pontos</h2>
+        <span class="section-sub">${pointsCache.length} colaboradores · ${totalEmpresa.toLocaleString('pt-BR')} pts distribuídos</span>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-value">${totalEmpresa.toLocaleString('pt-BR')}</div><div class="stat-label">Pontos totais</div></div>
+        <div class="stat-card"><div class="stat-icon">📊</div><div class="stat-value" style="color:var(--roxo-medio);">${totalPDI}</div><div class="stat-label">Origem PDI</div></div>
+        <div class="stat-card"><div class="stat-icon">🎓</div><div class="stat-value" style="color:var(--verde);">${totalAcademy}</div><div class="stat-label">Origem Academy</div></div>
+        <div class="stat-card"><div class="stat-icon">✏️</div><div class="stat-value" style="color:var(--cde-laranja-escuro);">${totalAjustes}</div><div class="stat-label">Ajustes manuais</div></div>
+        <div class="stat-card"><div class="stat-icon">📈</div><div class="stat-value">${media}</div><div class="stat-label">Média por pessoa</div></div>
+      </div>
+
+      <div style="background: var(--branco); border-radius:14px; padding:22px; border:1px solid var(--cinza-borda); margin-bottom: 20px; overflow-x: auto;">
+        <h3 style="font-size: 1rem; margin-bottom: 14px;">🏆 Ranking completo</h3>
+        <table class="analytics-table">
+          <thead><tr>
+            <th style="width:40px;">#</th>
+            <th>Colaborador</th>
+            <th>Setor</th>
+            <th style="text-align:center;">PDI</th>
+            <th style="text-align:center;">Academy</th>
+            <th style="text-align:center;">Ajustes</th>
+            <th style="text-align:center;">Total</th>
+            <th style="text-align:right;">Ações</th>
+          </tr></thead>
+          <tbody>
+            ${ranking.map((u, i) => `
+              <tr>
+                <td style="font-weight:800; color:${i===0?'var(--amarelo)':i===1?'var(--texto-soft)':i===2?'var(--cde-laranja-escuro)':'var(--texto-mute)'};">${i+1}</td>
+                <td>
+                  <div style="font-weight:700;">${escapeHtml(u.nome)}</div>
+                  <div style="font-size:0.72rem; color:var(--texto-soft);">${escapeHtml(u.cargo || u.email)}</div>
+                </td>
+                <td style="font-size:0.82rem;">${escapeHtml(u.setor)}</td>
+                <td style="text-align:center;">${u.pdi}</td>
+                <td style="text-align:center;">${u.academy}</td>
+                <td style="text-align:center; color:${u.ajustes !== 0 ? 'var(--cde-laranja-escuro)' : 'var(--texto-mute)'};">${u.ajustes > 0 ? '+' : ''}${u.ajustes}</td>
+                <td style="text-align:center; font-weight:800; font-size:1rem;">${u.total}</td>
+                <td style="text-align:right;">
+                  <button class="btn-secondary btn-small" onclick="openPointsAdjustModal('${u.id}')">⭐ Ajustar</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div style="background: var(--branco); border-radius:14px; padding:22px; border:1px solid var(--cinza-borda);">
+        <h3 style="font-size: 1rem; margin-bottom: 14px;">📜 Histórico de ajustes manuais</h3>
+        ${adjs.length === 0 ? '<p style="color:var(--texto-soft); font-size:0.88rem;">Nenhum ajuste manual feito ainda.</p>' : adjs.slice(0, 30).map(a => {
+          const u = byUser[a.user_id];
+          return `
+            <div style="padding: 12px 0; border-bottom: 1px solid var(--cinza-borda); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+              <div style="flex:1; min-width:200px;">
+                <div style="font-weight:700; font-size:0.88rem;">${escapeHtml(u?.nome || 'Usuário removido')}</div>
+                <div style="font-size:0.78rem; color:var(--texto-soft); margin-top:2px;">${escapeHtml(a.reason)}</div>
+                <div style="font-size:0.7rem; color:var(--texto-mute); margin-top:4px;">
+                  ${new Date(a.created_at).toLocaleString('pt-BR')} · por ${escapeHtml(a.created_by_name || '—')}
+                </div>
+              </div>
+              <div style="font-weight:800; font-size:1rem; color:${a.points >= 0 ? 'var(--verde)' : 'var(--cde-vermelho)'}; align-self:center;">
+                ${a.points > 0 ? '+' : ''}${a.points} pts
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  } catch (e) {
+    console.error('Erro renderPointsManagement:', e);
+    main.innerHTML = `<div class="state-box" style="color:var(--cde-vermelho);">Erro: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function openPointsAdjustModal(userId) {
+  editingAdjustUserId = userId;
+  const u = pointsCache.find(x => x.id === userId);
+  if (!u) return;
+  document.getElementById('pa-subtitle').textContent = `${u.nome} · Total atual: ${u.total} pts`;
+  document.getElementById('pa-points').value = 5;
+  document.getElementById('pa-reason').value = '';
+  document.getElementById('points-adjust-modal').classList.remove('hidden');
+}
+
+function closePointsAdjustModal() {
+  document.getElementById('points-adjust-modal').classList.add('hidden');
+  editingAdjustUserId = null;
+}
+
+async function savePointsAdjustment() {
+  if (!editingAdjustUserId) return;
+  const points = parseInt(document.getElementById('pa-points').value, 10);
+  const reason = document.getElementById('pa-reason').value.trim();
+
+  if (!points || points === 0) return showMessage('Informe um valor de pontos (diferente de zero).', 'error');
+  if (!reason) return showMessage('Informe o motivo do ajuste.', 'error');
+
+  try {
+    const { error } = await db.from('academy_points_adjustments').insert({
+      user_id: editingAdjustUserId,
+      points,
+      reason,
+      created_by: currentUser.id,
+      created_by_name: currentProfile.full_name || currentUser.email
+    });
+    if (error) throw error;
+
+    showMessage(`Ajuste de ${points > 0 ? '+' : ''}${points} pts aplicado.`, 'success');
+    closePointsAdjustModal();
+
+    // Se o ajuste foi no próprio usuário logado, atualiza a topbar
+    if (editingAdjustUserId === currentUser.id) await loadTopbarPoints();
+
+    await renderPointsManagement();
+  } catch (e) {
+    showMessage('Erro: ' + e.message, 'error');
+  }
 }
 
 // ==================== PAINEL DE GESTÃO ====================
@@ -2550,6 +2826,447 @@ function initDashEvolucaoChart(meses) {
   });
 }
 
+// ==================== NOTIFICAÇÕES ====================
+let notificationsList = [];
+let unreadNotifications = 0;
+
+async function loadNotifications() {
+  try {
+    const { data, error } = await db
+      .from('academy_notifications')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    notificationsList = data || [];
+
+    const { data: reads } = await db
+      .from('academy_notification_reads')
+      .select('notification_id')
+      .eq('user_id', currentUser.id);
+    const readSet = new Set((reads || []).map(r => r.notification_id));
+
+    unreadNotifications = notificationsList.filter(n => !readSet.has(n.id)).length;
+    updateNotifBadge();
+  } catch (e) {
+    console.error('Erro ao carregar notificações:', e);
+  }
+}
+
+function updateNotifBadge() {
+  const badge = document.getElementById('notif-badge');
+  if (!badge) return;
+  if (unreadNotifications > 0) {
+    badge.textContent = unreadNotifications > 9 ? '9+' : String(unreadNotifications);
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+async function openNotificationsModal() {
+  await loadNotifications();
+  renderNotificationsList();
+  const newBtn = document.getElementById('btn-new-notification');
+  if (canManage) newBtn.classList.remove('hidden');
+  else newBtn.classList.add('hidden');
+  document.getElementById('notifications-modal').classList.remove('hidden');
+  await markAllNotificationsRead();
+}
+
+function closeNotificationsModal() {
+  document.getElementById('notifications-modal').classList.add('hidden');
+}
+
+async function markAllNotificationsRead() {
+  try {
+    const { data: reads } = await db
+      .from('academy_notification_reads')
+      .select('notification_id')
+      .eq('user_id', currentUser.id);
+    const readSet = new Set((reads || []).map(r => r.notification_id));
+
+    const toInsert = notificationsList
+      .filter(n => !readSet.has(n.id))
+      .map(n => ({ notification_id: n.id, user_id: currentUser.id }));
+
+    if (toInsert.length > 0) {
+      await db.from('academy_notification_reads').insert(toInsert);
+      unreadNotifications = 0;
+      updateNotifBadge();
+    }
+  } catch (e) {
+    console.error('Erro ao marcar como lidas:', e);
+  }
+}
+
+function renderNotificationsList() {
+  const container = document.getElementById('notifications-list');
+  if (notificationsList.length === 0) {
+    container.innerHTML = '<div class="state-box"><span class="emoji">🔕</span>Nenhuma notificação ainda.</div>';
+    return;
+  }
+  container.innerHTML = notificationsList.map(n => `
+    <div style="padding: 14px; background: var(--cinza-bg); border-radius: 10px; margin-bottom: 10px; border-left: 3px solid var(--cde-laranja);">
+      <div style="display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; align-items: flex-start;">
+        <div style="font-weight: 700; font-size: 0.95rem;">${escapeHtml(n.title)}</div>
+        <div style="font-size: 0.72rem; color: var(--texto-soft); white-space: nowrap;">${new Date(n.created_at).toLocaleDateString('pt-BR')}</div>
+      </div>
+      <div style="font-size: 0.88rem; color: var(--texto-soft); line-height: 1.5; white-space: pre-wrap;">${escapeHtml(n.message)}</div>
+      <div style="font-size: 0.72rem; color: var(--texto-mute); margin-top: 8px;">Por ${escapeHtml(n.created_by_name || 'Equipe CDE')}</div>
+    </div>
+  `).join('');
+}
+
+function openNewNotificationForm() {
+  document.getElementById('notif-title').value = '';
+  document.getElementById('notif-message').value = '';
+  document.getElementById('new-notification-modal').classList.remove('hidden');
+}
+
+function closeNewNotificationForm() {
+  document.getElementById('new-notification-modal').classList.add('hidden');
+}
+
+async function sendNotification() {
+  const title = document.getElementById('notif-title').value.trim();
+  const message = document.getElementById('notif-message').value.trim();
+  if (!title) return showMessage('Título obrigatório.', 'error');
+  if (!message) return showMessage('Mensagem obrigatória.', 'error');
+
+  try {
+    const { error } = await db.from('academy_notifications').insert({
+      title,
+      message,
+      created_by: currentUser.id,
+      created_by_name: currentProfile.full_name || currentUser.email
+    });
+    if (error) throw error;
+    showMessage('Notificação enviada para todos! 📢', 'success');
+    closeNewNotificationForm();
+    await loadNotifications();
+    renderNotificationsList();
+  } catch (e) {
+    showMessage('Erro: ' + e.message, 'error');
+  }
+}
+
+// ==================== LOJA DE PRÊMIOS ====================
+let prizesCache = [];
+let editingPrizeId = null;
+let editingPrizeImageUrl = null;
+let redeemTargetPrize = null;
+let redeemUserBalance = null;
+
+async function renderPrizesView() {
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<div class="state-box">Carregando prêmios…</div>';
+
+  try {
+    const [prizesRes, myBalance, myRedemptionsRes] = await Promise.all([
+      db.from('academy_prizes').select('*').order('points_cost', { ascending: true }),
+      getUserPointsBalance(currentUser.id),
+      db.from('academy_redemptions').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false })
+    ]);
+
+    const allPrizes = prizesRes.data || [];
+    prizesCache = canManage ? allPrizes : allPrizes.filter(p => p.is_active);
+    const myRedemptions = myRedemptionsRes.data || [];
+
+    const kpi = (icon, value, label, color) => `
+      <div class="stat-card">
+        <div class="stat-icon">${icon}</div>
+        <div class="stat-value" ${color ? `style="color:${color}"` : ''}>${value}</div>
+        <div class="stat-label">${label}</div>
+      </div>`;
+
+    const prizeCard = (p) => {
+      const coverStyle = p.image_url ? `background-image: url('${escapeHtml(p.image_url)}'); background-size: cover; background-position: center;` : '';
+      const pode = myBalance.disponivel >= p.points_cost;
+      const semEstoque = p.stock !== null && p.stock <= 0;
+      const inativo = p.is_active === false;
+      const disabledLabel = semEstoque ? 'Sem estoque' : inativo ? 'Inativo' : !pode ? 'Saldo insuficiente' : null;
+
+      const adminBtns = canManage ? `
+        <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
+          <button class="btn-secondary btn-small" onclick="event.stopPropagation();openPrizeForm('${p.id}')">✏️ Editar</button>
+          <button class="btn-danger btn-small" onclick="event.stopPropagation();deletePrize('${p.id}')">🗑</button>
+        </div>` : '';
+
+      const actionBtn = canManage
+        ? `<button class="btn-primary" style="width:100%; margin-top:10px; padding:10px;" onclick="openRedeemModal('${p.id}')" ${semEstoque || inativo ? 'disabled' : ''}>
+             🎁 Resgatar para colaborador
+           </button>`
+        : `<div style="margin-top:10px; padding:10px; text-align:center; font-size:0.78rem; font-weight:700; border-radius:8px;
+             background:${disabledLabel ? 'var(--cinza-bg)' : 'var(--verde-bg)'};
+             color:${disabledLabel ? 'var(--texto-soft)' : 'var(--verde)'};">
+             ${disabledLabel ? disabledLabel : '✅ Você já pode resgatar!'}
+           </div>`;
+
+      return `
+        <div class="course-card" style="cursor:default; ${inativo ? 'opacity:0.55;' : ''}">
+          <div class="course-cover" style="${coverStyle}">
+            ${!p.image_url ? '🎁' : ''}
+            <span class="course-badge" style="background: var(--cde-laranja); color:#fff;">⭐ ${p.points_cost} pts</span>
+            ${semEstoque ? '<span class="course-badge" style="background:#FDE8EB; color:var(--cde-vermelho); top:auto; bottom:12px;">Sem estoque</span>' : ''}
+          </div>
+          <div class="course-body">
+            <h3>${escapeHtml(p.name)}</h3>
+            <p>${escapeHtml(p.description || 'Sem descrição.')}</p>
+            <div class="course-meta">
+              ${p.stock !== null ? `<span class="tag">📦 ${p.stock} disponíve${p.stock === 1 ? 'l' : 'is'}</span>` : '<span class="tag">♾️ Estoque ilimitado</span>'}
+            </div>
+            ${actionBtn}
+            ${adminBtns}
+          </div>
+        </div>`;
+    };
+
+    main.innerHTML = `
+      <div class="section-header">
+        <h2>🏆 Loja de Prêmios</h2>
+        <span class="section-sub">Troque seus pontos por recompensas</span>
+        ${canManage ? `<div class="header-actions"><button class="btn-primary" onclick="openPrizeForm()">+ Novo Prêmio</button></div>` : ''}
+      </div>
+
+      <div class="stats-grid">
+        ${kpi('💎', myBalance.disponivel, 'Meus pontos disponíveis', 'var(--cde-laranja-escuro)')}
+        ${kpi('⭐', myBalance.ganhoTotal, 'Pontos acumulados', 'var(--roxo-medio)')}
+        ${kpi('🎁', myBalance.resgates, 'Pontos resgatados', 'var(--cde-vermelho)')}
+        ${kpi('📜', myRedemptions.length, 'Prêmios recebidos', 'var(--verde)')}
+      </div>
+
+      <div class="section-header" style="margin-top: 8px;">
+        <h2 style="font-size: 1.1rem;">🎁 Prêmios disponíveis</h2>
+      </div>
+      ${prizesCache.length === 0
+        ? renderEmpty('🎁', canManage ? 'Nenhum prêmio cadastrado. Clique em "+ Novo Prêmio".' : 'Nenhum prêmio disponível no momento.')
+        : `<div class="courses-grid">${prizesCache.map(prizeCard).join('')}</div>`}
+
+      ${myRedemptions.length > 0 ? `
+        <div class="section-header" style="margin-top: 20px;">
+          <h2 style="font-size: 1.1rem;">📜 Meus resgates</h2>
+        </div>
+        <div style="background: var(--branco); border-radius:14px; padding:20px; border:1px solid var(--cinza-borda);">
+          ${myRedemptions.map(r => `
+            <div style="padding: 12px 0; border-bottom: 1px solid var(--cinza-borda); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+              <div style="flex:1; min-width:180px;">
+                <div style="font-weight:700; font-size:0.9rem;">${escapeHtml(r.prize_name)}</div>
+                <div style="font-size:0.75rem; color:var(--texto-soft); margin-top:2px;">
+                  ${new Date(r.created_at).toLocaleDateString('pt-BR')} ·
+                  ${r.status === 'delivered' ? '✅ Entregue' : r.status === 'cancelled' ? '❌ Cancelado' : '⏳ Pendente'}
+                </div>
+              </div>
+              <div style="font-weight:800; color: var(--cde-vermelho); align-self:center;">-${r.points_spent} pts</div>
+            </div>`).join('')}
+        </div>` : ''}
+    `;
+  } catch (e) {
+    console.error('Erro renderPrizesView:', e);
+    main.innerHTML = `<div class="state-box" style="color:var(--cde-vermelho);">Erro: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// ---------- CRUD PRÊMIOS ----------
+function openPrizeForm(prizeId = null) {
+  editingPrizeId = prizeId;
+  editingPrizeImageUrl = null;
+  document.getElementById('pf-title-h').textContent = prizeId ? 'Editar Prêmio' : 'Novo Prêmio';
+  const name = document.getElementById('pf-name'), desc = document.getElementById('pf-desc'),
+        cost = document.getElementById('pf-cost'), stock = document.getElementById('pf-stock'),
+        active = document.getElementById('pf-active');
+  name.value = ''; desc.value = ''; cost.value = 50; stock.value = ''; active.checked = true;
+  document.getElementById('pf-image').value = '';
+  document.getElementById('pf-image-name').textContent = '';
+
+  if (prizeId) {
+    const p = prizesCache.find(x => x.id === prizeId);
+    if (p) {
+      name.value = p.name || '';
+      desc.value = p.description || '';
+      cost.value = p.points_cost || 50;
+      stock.value = p.stock === null ? '' : (p.stock || 0);
+      active.checked = p.is_active !== false;
+      editingPrizeImageUrl = p.image_url || null;
+      if (p.image_url) document.getElementById('pf-image-name').textContent = '✓ Imagem atual mantida';
+    }
+  }
+  document.getElementById('prize-form-modal').classList.remove('hidden');
+}
+function closePrizeForm() {
+  document.getElementById('prize-form-modal').classList.add('hidden');
+  editingPrizeId = null; editingPrizeImageUrl = null;
+}
+function onPrizeImageChange(e) {
+  const f = e.target.files[0];
+  document.getElementById('pf-image-name').textContent = f ? '✓ ' + f.name : '';
+}
+async function savePrize() {
+  const name = document.getElementById('pf-name').value.trim();
+  const description = document.getElementById('pf-desc').value.trim();
+  const points_cost = parseInt(document.getElementById('pf-cost').value, 10);
+  const stockRaw = document.getElementById('pf-stock').value.trim();
+  const stock = stockRaw === '' ? null : parseInt(stockRaw, 10);
+  const is_active = document.getElementById('pf-active').checked;
+  const file = document.getElementById('pf-image').files[0];
+
+  if (!name) return showMessage('Nome obrigatório.', 'error');
+  if (!points_cost || points_cost <= 0) return showMessage('Custo deve ser maior que zero.', 'error');
+
+  try {
+    let image_url = editingPrizeImageUrl;
+    if (file) {
+      const path = `prizes/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+      const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      image_url = db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    }
+    const payload = { name, description: description || null, points_cost, stock, is_active, image_url };
+    if (editingPrizeId) {
+      const { error } = await db.from('academy_prizes').update(payload).eq('id', editingPrizeId);
+      if (error) throw error;
+      showMessage('Prêmio atualizado!', 'success');
+    } else {
+      payload.created_by = currentUser.id;
+      const { error } = await db.from('academy_prizes').insert(payload);
+      if (error) throw error;
+      showMessage('Prêmio criado!', 'success');
+    }
+    closePrizeForm();
+    await renderPrizesView();
+  } catch (e) { showMessage('Erro: ' + e.message, 'error'); }
+}
+async function deletePrize(prizeId) {
+  const p = prizesCache.find(x => x.id === prizeId);
+  if (!p) return;
+  if (!confirm(`Excluir o prêmio "${p.name}"?\n\nResgates antigos serão mantidos no histórico.`)) return;
+  try {
+    const { error } = await db.from('academy_prizes').delete().eq('id', prizeId);
+    if (error) throw error;
+    showMessage('Prêmio excluído.', 'success');
+    await renderPrizesView();
+  } catch (e) { showMessage('Erro: ' + e.message, 'error'); }
+}
+
+// ---------- RESGATE ----------
+async function openRedeemModal(prizeId) {
+  const prize = prizesCache.find(p => p.id === prizeId);
+  if (!prize) return;
+  redeemTargetPrize = prize;
+  document.getElementById('redeem-subtitle').textContent = `${prize.name} · ${prize.points_cost} pts`;
+  document.getElementById('redeem-notes').value = '';
+  document.getElementById('redeem-warning').classList.add('hidden');
+  document.getElementById('redeem-confirm-btn').disabled = false;
+
+  // Carrega colaboradores
+  const sel = document.getElementById('redeem-user-select');
+  sel.innerHTML = '<option>Carregando…</option>';
+  const { data: profiles } = await db.from('profiles')
+    .select('id, full_name, email, sector, role').order('full_name');
+  const allowed = ['employee', 'colaborador', 'supervisor'];
+  const list = (profiles || []).filter(p => allowed.includes((p.role || '').toLowerCase()));
+
+  sel.innerHTML = '<option value="">— Selecione —</option>' +
+    list.map(p => `<option value="${p.id}">${escapeHtml(p.full_name || p.email)}${p.sector ? ' — ' + escapeHtml(p.sector) : ''}</option>`).join('');
+  sel.onchange = onRedeemUserChange;
+
+  document.getElementById('redeem-user-info').textContent = 'Selecione um colaborador para ver o saldo.';
+  document.getElementById('redeem-modal').classList.remove('hidden');
+}
+
+async function onRedeemUserChange() {
+  const userId = document.getElementById('redeem-user-select').value;
+  const infoBox = document.getElementById('redeem-user-info');
+  const warn = document.getElementById('redeem-warning');
+  const btn = document.getElementById('redeem-confirm-btn');
+
+  if (!userId) {
+    infoBox.textContent = 'Selecione um colaborador para ver o saldo.';
+    warn.classList.add('hidden');
+    btn.disabled = false;
+    redeemUserBalance = null;
+    return;
+  }
+
+  infoBox.textContent = 'Consultando saldo…';
+  redeemUserBalance = await getUserPointsBalance(userId);
+
+  const custo = redeemTargetPrize.points_cost;
+  const saldo = redeemUserBalance.disponivel;
+  const ok = saldo >= custo;
+
+  infoBox.innerHTML = `
+    <div style="display:flex; justify-content:space-between; gap:10px;">
+      <span>Saldo disponível:</span>
+      <strong style="color:${ok ? 'var(--verde)' : 'var(--cde-vermelho)'};">${saldo} pts</strong>
+    </div>
+    <div style="display:flex; justify-content:space-between; gap:10px; margin-top:4px;">
+      <span>Custo do prêmio:</span>
+      <strong>${custo} pts</strong>
+    </div>
+    <div style="display:flex; justify-content:space-between; gap:10px; margin-top:8px; padding-top:8px; border-top:1px dashed var(--cinza-borda);">
+      <span>Saldo após resgate:</span>
+      <strong style="color:${ok ? 'var(--cde-laranja-escuro)' : 'var(--cde-vermelho)'};">${saldo - custo} pts</strong>
+    </div>`;
+
+  if (ok) { warn.classList.add('hidden'); btn.disabled = false; }
+  else { warn.classList.remove('hidden'); btn.disabled = true; }
+}
+
+function closeRedeemModal() {
+  document.getElementById('redeem-modal').classList.add('hidden');
+  redeemTargetPrize = null;
+  redeemUserBalance = null;
+}
+
+async function confirmRedemption() {
+  if (!redeemTargetPrize || !redeemUserBalance) return;
+  const userId = document.getElementById('redeem-user-select').value;
+  if (!userId) return showMessage('Selecione um colaborador.', 'error');
+
+  const prize = redeemTargetPrize;
+  const notes = document.getElementById('redeem-notes').value.trim();
+
+  if (redeemUserBalance.disponivel < prize.points_cost) {
+    return showMessage('Saldo insuficiente.', 'error');
+  }
+  if (!confirm(`Confirmar resgate de "${prize.name}" (${prize.points_cost} pts)?\n\nO saldo do colaborador será reduzido.`)) return;
+
+  const btn = document.getElementById('redeem-confirm-btn');
+  btn.disabled = true; btn.textContent = 'Processando…';
+
+  try {
+    // 1. Registra o resgate
+    const { error: redErr } = await db.from('academy_redemptions').insert({
+      user_id: userId,
+      prize_id: prize.id,
+      prize_name: prize.name,
+      points_spent: prize.points_cost,
+      notes: notes || null,
+      status: 'pending',
+      created_by: currentUser.id,
+      created_by_name: currentProfile.full_name || currentUser.email
+    });
+    if (redErr) throw redErr;
+
+    // 2. Baixa o estoque (se controlado)
+    if (prize.stock !== null && prize.stock > 0) {
+      await db.from('academy_prizes').update({ stock: prize.stock - 1 }).eq('id', prize.id);
+    }
+
+    // 3. Se foi para o próprio usuário logado, atualiza a topbar
+    if (userId === currentUser.id) await loadTopbarPoints();
+
+    showMessage(`🎁 "${prize.name}" resgatado! -${prize.points_cost} pts.`, 'success');
+    closeRedeemModal();
+    await renderPrizesView();
+  } catch (e) {
+    showMessage('Erro: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Confirmar Resgate';
+  }
+}
+
 // ==================== INIT ====================
 db.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') window.location.href = PDI_URL; });
 
@@ -2560,6 +3277,18 @@ document.getElementById('lesson-form-modal')?.addEventListener('click', e => { i
 document.getElementById('quiz-modal')?.addEventListener('click', e => { if (e.target.id === 'quiz-modal') closeQuizEditor(); });
 document.getElementById('enroll-modal')?.addEventListener('click', e => { if (e.target.id === 'enroll-modal') closeEnrollModal(); });
 document.getElementById('certificate-modal')?.addEventListener('click', e => { if (e.target.id === 'certificate-modal') closeCertificateModal(); });
+document.getElementById('notifications-modal')?.addEventListener('click', e => { if (e.target.id === 'notifications-modal') closeNotificationsModal(); });
+document.getElementById('new-notification-modal')?.addEventListener('click', e => { if (e.target.id === 'new-notification-modal') closeNewNotificationForm(); });
+document.getElementById('points-adjust-modal')?.addEventListener('click', e => {
+  if (e.target.id === 'points-adjust-modal') closePointsAdjustModal();
+});
+
+document.getElementById('prize-form-modal')?.addEventListener('click', e => {
+  if (e.target.id === 'prize-form-modal') closePrizeForm();
+});
+document.getElementById('redeem-modal')?.addEventListener('click', e => {
+  if (e.target.id === 'redeem-modal') closeRedeemModal();
+});
 
 initTheme();
 
