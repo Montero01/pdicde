@@ -61,6 +61,9 @@
       <button class="nav-item" data-view="empresa" onclick="switchView('empresa')">
         <span class="nav-icon">🏢</span><span>Nossa Empresa</span>
       </button>
+      <button class="nav-item" data-view="prizes" onclick="switchView('prizes')">
+         <span class="nav-icon">🏆</span><span>Loja de Prêmios</span>
+      </button>
       <button class="nav-item" data-view="mycourses" onclick="switchView('mycourses')">
         <span class="nav-icon">💻</span><span>Meus Cursos</span>
       </button>
@@ -82,6 +85,9 @@
       <button class="nav-item hidden" id="nav-manage" data-view="manage" onclick="switchView('manage')">
         <span class="nav-icon">⚙️</span><span>Gerenciar Cursos</span>
       </button>
+      <button class="nav-item hidden" id="nav-points" data-view="points" onclick="switchView('points')">
+       <span class="nav-icon">⭐</span><span>Gerenciar Pontos</span>
+</button>
     </nav>
     <div class="sidebar-footer">
       <button class="logout-btn" onclick="logout()">
@@ -99,13 +105,14 @@
       <div class="topbar-spacer"></div>
       <div class="topbar-points" id="topbar-points" title="Pontos acumulados no PDI">0 pts</div>
       <div class="topbar-icons">
-        <button class="icon-btn" id="theme-toggle" onclick="toggleTheme()" title="Alternar tema">
-          <span id="theme-icon">🌙</span>
-        </button>
-        <button class="icon-btn hide-mobile" title="Segurança">🛡️</button>
-        <button class="icon-btn hide-mobile" title="Favoritos">⭐</button>
-        <button class="icon-btn hide-mobile" title="Mensagens">✉️</button>
-      </div>
+  <button class="icon-btn" id="notif-btn" onclick="openNotificationsModal()" title="Notificações" style="position:relative;">
+    <span>🔔</span>
+    <span id="notif-badge" class="hidden" style="position:absolute; top:-4px; right:-4px; background:#C8102E; color:#fff; font-size:0.62rem; font-weight:800; min-width:16px; height:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; padding:0 4px; line-height:1;">0</span>
+  </button>
+  <button class="icon-btn" id="theme-toggle" onclick="toggleTheme()" title="Alternar tema">
+    <span id="theme-icon">🌙</span>
+  </button>
+</div>
       <div class="topbar-avatar" id="topbar-avatar" onclick="openAvatarModal()" title="Alterar foto">CD</div>
     </header>
     <main class="main-content" id="main-content"></main>
@@ -396,6 +403,133 @@
     <div class="modal-actions" style="margin-top: 20px;">
       <button class="btn-secondary" onclick="closeAvatarModal()">Cancelar</button>
       <button class="btn-primary" id="avatar-save-btn" onclick="saveAvatar()" disabled>Salvar Foto</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NOTIFICAÇÕES -->
+<div id="notifications-modal" class="modal-overlay hidden">
+  <div class="modal-box wide">
+    <h3>🔔 Notificações</h3>
+    <p class="subtitle">Avisos da equipe CDE Academy</p>
+    <div id="notifications-list" style="max-height: 420px; overflow-y: auto;"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary hidden" id="btn-new-notification" onclick="openNewNotificationForm()">+ Nova Notificação</button>
+      <button class="btn-secondary" onclick="closeNotificationsModal()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL AJUSTE DE PONTOS -->
+<div id="points-adjust-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>⭐ Ajustar Pontos</h3>
+    <p class="subtitle" id="pa-subtitle">—</p>
+    <div class="form-group">
+      <label>Pontos * (use negativo para remover)</label>
+      <input type="number" id="pa-points" step="1" value="5">
+    </div>
+    <div class="form-group">
+      <label>Motivo *</label>
+      <textarea id="pa-reason" maxlength="300" style="min-height: 90px;" placeholder="Ex: Participação em treinamento presencial"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closePointsAdjustModal()">Cancelar</button>
+      <button class="btn-primary" onclick="savePointsAdjustment()">Salvar Ajuste</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NOVA NOTIFICAÇÃO -->
+<div id="new-notification-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>📢 Enviar Notificação</h3>
+    <p class="subtitle">Todos os colaboradores receberão este aviso.</p>
+    <div class="form-group">
+      <label>Título *</label>
+      <input type="text" id="notif-title" maxlength="120" placeholder="Ex: Novo curso disponível">
+    </div>
+    <div class="form-group">
+      <label>Mensagem *</label>
+      <textarea id="notif-message" maxlength="1000" style="min-height: 120px;" placeholder="Digite a mensagem..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeNewNotificationForm()">Cancelar</button>
+      <button class="btn-primary" onclick="sendNotification()">Enviar para todos</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PRÊMIO (form) -->
+<div id="prize-form-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 id="pf-title-h">Novo Prêmio</h3>
+    <p class="subtitle" id="pf-subtitle">Cadastre um prêmio que pode ser resgatado.</p>
+    <div class="form-group">
+      <label>Nome do prêmio *</label>
+      <input type="text" id="pf-name" maxlength="120" placeholder="Ex: Fone Bluetooth JBL">
+    </div>
+    <div class="form-group">
+      <label>Descrição</label>
+      <textarea id="pf-desc" maxlength="500" style="min-height: 80px;" placeholder="Detalhes do prêmio..."></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Custo em pontos *</label>
+        <input type="number" id="pf-cost" min="1" value="50">
+      </div>
+      <div class="form-group">
+        <label>Estoque (vazio = ilimitado)</label>
+        <input type="number" id="pf-stock" min="0" placeholder="∞">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Imagem (opcional)</label>
+      <label class="upload-box" for="pf-image">
+        <input type="file" id="pf-image" accept="image/*" onchange="onPrizeImageChange(event)">
+        <div class="upload-icon">🖼️</div>
+        <div class="upload-label">Clique para escolher a imagem</div>
+        <div class="upload-file" id="pf-image-name"></div>
+      </label>
+    </div>
+    <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="pf-active" checked style="width:auto;">
+      <label for="pf-active" style="margin:0;">Prêmio ativo (visível na loja)</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closePrizeForm()">Cancelar</button>
+      <button class="btn-primary" onclick="savePrize()">Salvar Prêmio</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RESGATE -->
+<div id="redeem-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>🎁 Resgatar Prêmio</h3>
+    <p class="subtitle" id="redeem-subtitle">—</p>
+
+    <div class="form-group">
+      <label>Colaborador *</label>
+      <select id="redeem-user-select"></select>
+    </div>
+
+    <div id="redeem-user-info" style="background: var(--cinza-bg); border-radius: 10px; padding: 12px; margin-bottom: 12px; font-size: 0.85rem;">
+      Selecione um colaborador para ver o saldo.
+    </div>
+
+    <div class="form-group">
+      <label>Observações (opcional)</label>
+      <textarea id="redeem-notes" maxlength="300" style="min-height: 70px;" placeholder="Ex: Entregue na reunião de equipe"></textarea>
+    </div>
+
+    <div id="redeem-warning" class="hidden" style="padding: 10px 12px; background: #FDE8EB; border-radius: 10px; color: var(--cde-vermelho); font-size: 0.82rem; font-weight: 600; margin-bottom: 10px;">
+      ⚠️ Saldo insuficiente.
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeRedeemModal()">Cancelar</button>
+      <button class="btn-primary" id="redeem-confirm-btn" onclick="confirmRedemption()">Confirmar Resgate</button>
     </div>
   </div>
 </div>
