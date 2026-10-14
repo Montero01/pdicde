@@ -15,6 +15,18 @@ const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 
+// Client separado usado SOMENTE para criar usuários.
+// Não persiste sessão, então não substitui a sessão do admin logado.
+const dbSignup = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    storage: window.sessionStorage,
+    storageKey: 'cde-signup-temp',
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false
+  }
+});
+
 // ==================== ESTADO ====================
 let currentUser = null;
 let currentProfile = null;
@@ -322,9 +334,13 @@ async function loadUser() {
     document.getElementById('nav-manage').classList.remove('hidden');
     document.getElementById('nav-analytics').classList.remove('hidden');
     document.getElementById('nav-points').classList.remove('hidden');
+    document.getElementById('add-user-btn').classList.remove('hidden');
   }
 
-  // Dashboard executivo — somente Diretoria/Master
+  if (isMaster) {
+    document.getElementById('nu-master-wrap').classList.remove('hidden');
+  }
+  // Dashboard executivo — VERAQUI somente Diretoria/Master
   if (isMaster || isDiretor) {
     const navDash = document.getElementById('nav-dashboard');
     if (navDash) navDash.classList.remove('hidden');
@@ -1761,7 +1777,7 @@ async function loadEditorModules() {
     if (error) throw error;
     currentEditorModules = mods || [];
     if (currentEditorModules.length === 0) {
-      container.innerHTML = `<div class="state-box"><span class="emoji">📦</span>Nenhum módulo criado.<br><button class="btn-primary" style="margin-top: 14px;" onclick="openModuleForm()">+ Criar primeiro módulo</button></div>`;
+      container.innerHTML = `<div class="state-box"><span class="emoji">📦</span>Nenhum módulo criado.<br><button class="btn-primary" style="margin-top: 14px;" onclick="openModuleForm()">+  primeiro módulo</button></div>`;
       return;
     }
     const html = await Promise.all(currentEditorModules.map(async (mod) => {
@@ -3267,6 +3283,106 @@ async function confirmRedemption() {
   }
 }
 
+// ==================== CADASTRO DE USUÁRIOS ====================
+function openNewUserModal() {
+  document.getElementById('nu-name').value = '';
+  document.getElementById('nu-email').value = '';
+  document.getElementById('nu-password').value = '';
+  document.getElementById('nu-password2').value = '';
+  document.getElementById('nu-position').value = '';
+  document.getElementById('nu-sector').value = '';
+  document.getElementById('nu-role').value = 'employee';
+  document.getElementById('nu-is-professor').checked = false;
+  document.getElementById('nu-is-master').checked = false;
+
+  const btn = document.getElementById('nu-save-btn');
+  btn.disabled = false;
+  btn.textContent = 'Criar usuário';
+
+  document.getElementById('new-user-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('nu-name').focus(), 100);
+}
+
+function closeNewUserModal() {
+  document.getElementById('new-user-modal').classList.add('hidden');
+}
+
+async function createNewUser() {
+  const fullName  = document.getElementById('nu-name').value.trim();
+  const email     = document.getElementById('nu-email').value.trim().toLowerCase();
+  const password  = document.getElementById('nu-password').value;
+  const password2 = document.getElementById('nu-password2').value;
+  const position  = document.getElementById('nu-position').value.trim();
+  const sector    = document.getElementById('nu-sector').value || null;
+  const role      = document.getElementById('nu-role').value;
+  const isProfessor = document.getElementById('nu-is-professor').checked;
+  const isMaster    = document.getElementById('nu-is-master').checked;
+
+  // Validações
+  if (!fullName) return showMessage('Nome completo é obrigatório.', 'error');
+  if (!email) return showMessage('E-mail é obrigatório.', 'error');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showMessage('E-mail inválido.', 'error');
+  if (!password || password.length < 6) return showMessage('A senha deve ter ao menos 6 caracteres.', 'error');
+  if (password !== password2) return showMessage('As senhas não conferem.', 'error');
+
+  const btn = document.getElementById('nu-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Criando…';
+
+  try {
+    // 1) Cria o usuário no Supabase Auth (client temporário, não afeta a sessão atual)
+    const { data: signUpData, error: signUpErr } = await dbSignup.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName, position, sector, role }
+      }
+    });
+
+    if (signUpErr) throw signUpErr;
+    const newUserId = signUpData?.user?.id;
+    if (!newUserId) throw new Error('Não foi possível obter o ID do usuário criado.');
+
+    // 2) Cria o perfil na tabela profiles
+    const { error: profErr } = await db.from('profiles').insert({
+      id: newUserId,
+      full_name: fullName,
+      email,
+      position: position || null,
+      sector,
+      role,
+      is_professor: isProfessor,
+      is_master: isMaster,
+      avatar_url: null
+    });
+    if (profErr) throw profErr;
+
+    // 3) Limpeza preventiva da sessão temporária
+    try { await dbSignup.auth.signOut(); } catch (e) { /* silent */ }
+
+    showMessage(`✅ ${fullName} cadastrado com sucesso!`, 'success');
+    closeNewUserModal();
+
+    // Se a tela de matrículas estiver aberta, atualiza a lista de colaboradores
+    const enrollModal = document.getElementById('enroll-modal');
+    if (enrollModal && !enrollModal.classList.contains('hidden')) {
+      await loadEnrollUserSelect();
+    }
+  } catch (e) {
+    console.error('Erro ao criar usuário:', e);
+    let msg = e.message || 'Erro desconhecido';
+    if (/already registered|already been registered|User already/i.test(msg))
+      msg = 'Este e-mail já está cadastrado no sistema.';
+    else if (/Password should be/i.test(msg))
+      msg = 'Senha muito fraca. Use ao menos 6 caracteres com letras e números.';
+    else if (/invalid email/i.test(msg))
+      msg = 'E-mail inválido.';
+    showMessage('Erro: ' + msg, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Criar usuário';
+  }
+}
+
 // ==================== INIT ====================
 db.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') window.location.href = PDI_URL; });
 
@@ -3288,6 +3404,18 @@ document.getElementById('prize-form-modal')?.addEventListener('click', e => {
 });
 document.getElementById('redeem-modal')?.addEventListener('click', e => {
   if (e.target.id === 'redeem-modal') closeRedeemModal();
+});
+
+document.getElementById('new-user-modal')?.addEventListener('click', e => {
+  if (e.target.id === 'new-user-modal') closeNewUserModal();
+});
+
+document.getElementById('new-user-modal')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    const btn = document.getElementById('nu-save-btn');
+    if (btn && !btn.disabled) createNewUser();
+  }
 });
 
 initTheme();
