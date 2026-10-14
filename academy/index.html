@@ -96,6 +96,7 @@
     </div>
   </aside>
 
+  
   <div class="main-wrapper">
     <header class="topbar">
       <button class="hamburger" onclick="toggleSidebar()">☰</button>
@@ -105,6 +106,10 @@
       <div class="topbar-spacer"></div>
       <div class="topbar-points" id="topbar-points" title="Pontos acumulados no PDI">0 pts</div>
       <div class="topbar-icons">
+        <div class="topbar-icons">
+  <button class="icon-btn hidden" id="add-user-btn" onclick="openNewUserModal()" title="Cadastrar colaborador">
+    <span>➕</span>
+  </button>
   <button class="icon-btn" id="notif-btn" onclick="openNotificationsModal()" title="Notificações" style="position:relative;">
     <span>🔔</span>
     <span id="notif-badge" class="hidden" style="position:absolute; top:-4px; right:-4px; background:#C8102E; color:#fff; font-size:0.62rem; font-weight:800; min-width:16px; height:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; padding:0 4px; line-height:1;">0</span>
@@ -123,6 +128,75 @@
   </div>
 </div>
 
+<!-- MODAL NOVO USUÁRIO -->
+<div id="new-user-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width: 520px;">
+    <h3>➕ Cadastrar Colaborador</h3>
+    <p class="subtitle">O usuário poderá fazer login imediatamente com o e-mail e senha informados.</p>
+
+    <div class="form-group">
+      <label>Nome completo *</label>
+      <input type="text" id="nu-name" maxlength="120" placeholder="Ex: Maria Silva Santos">
+    </div>
+
+    <div class="form-group">
+      <label>E-mail *</label>
+      <input type="email" id="nu-email" maxlength="160" placeholder="nome@casadosespelhos.com.br" autocomplete="off">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Senha * (mín. 6 caracteres)</label>
+        <input type="password" id="nu-password" minlength="6" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label>Confirmar senha *</label>
+        <input type="password" id="nu-password2" minlength="6" autocomplete="new-password">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Cargo / Posição</label>
+        <input type="text" id="nu-position" maxlength="80" placeholder="Ex: Vendedor, Analista...">
+      </div>
+      <div class="form-group">
+        <label>Setor</label>
+        <select id="nu-sector">
+          <option value="">— Sem setor —</option>
+          <option value="COMERCIAL">Comercial</option>
+          <option value="PRODUÇÃO">Produção</option>
+          <option value="ADMINISTRATIVO">Administrativo</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Perfil de acesso</label>
+      <select id="nu-role">
+        <option value="employee">Colaborador</option>
+        <option value="supervisor">Supervisor</option>
+      </select>
+    </div>
+
+    <div class="form-group" style="background: var(--cinza-bg); border-radius: 10px; padding: 12px;">
+      <label style="display: flex; align-items: center; gap: 8px; margin: 0;">
+        <input type="checkbox" id="nu-is-professor" style="width: auto;">
+        <span>É <strong>Professor</strong>? (gerencia cursos, pontos, prêmios e notificações)</span>
+      </label>
+      <label id="nu-master-wrap" class="hidden" style="display: flex; align-items: center; gap: 8px; margin: 8px 0 0;">
+        <input type="checkbox" id="nu-is-master" style="width: auto;">
+        <span>É <strong>Master</strong>? (acesso total + Dashboard Executivo)</span>
+      </label>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeNewUserModal()">Cancelar</button>
+      <button class="btn-primary" id="nu-save-btn" onclick="createNewUser()">Criar usuário</button>
+    </div>
+  </div>
+</div>
+  
 <!-- PLAYER DE AULA -->
 <div id="lesson-player" class="hidden">
   <div class="player-header">
