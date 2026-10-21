@@ -70,6 +70,9 @@
       <button class="nav-item" data-view="catalog" onclick="switchView('catalog')">
         <span class="nav-icon">📚</span><span>Catálogo de Cursos</span>
       </button>
+      <button class="nav-item" data-view="library" onclick="switchView('library')">
+       <span class="nav-icon">📖</span><span>Biblioteca</span>
+      </button>
       <button class="nav-item" data-view="report" onclick="switchView('report')">
         <span class="nav-icon">📊</span><span>Meu Desempenho</span>
       </button>
@@ -84,6 +87,9 @@
       </button>
       <button class="nav-item hidden" id="nav-manage" data-view="manage" onclick="switchView('manage')">
         <span class="nav-icon">⚙️</span><span>Gerenciar Cursos</span>
+      </button>
+      <button class="nav-item hidden" id="nav-library-logs" data-view="librarylogs" onclick="switchView('librarylogs')">
+       <span class="nav-icon">📋</span><span>Log da Biblioteca</span>
       </button>
       <button class="nav-item hidden" id="nav-points" data-view="points" onclick="switchView('points')">
        <span class="nav-icon">⭐</span><span>Gerenciar Pontos</span>
@@ -605,6 +611,89 @@
       <button class="btn-secondary" onclick="closeRedeemModal()">Cancelar</button>
       <button class="btn-primary" id="redeem-confirm-btn" onclick="confirmRedemption()">Confirmar Resgate</button>
     </div>
+  </div>
+</div>
+
+
+<!-- MODAL NOVO/EDITAR LIVRO -->
+<div id="book-form-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 id="bf-title-h">Novo Livro</h3>
+    <p class="subtitle">Adicione um livro em PDF à biblioteca.</p>
+
+    <div class="form-group">
+      <label>Título do livro *</label>
+      <input type="text" id="bf-title" maxlength="200" placeholder="Ex: O Poder do Hábito">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Autor</label>
+        <input type="text" id="bf-author" maxlength="120" placeholder="Ex: Charles Duhigg">
+      </div>
+      <div class="form-group">
+        <label>Categoria</label>
+        <select id="bf-category">
+          <option value="">— Sem categoria —</option>
+          <option value="Liderança">Liderança</option>
+          <option value="Negócios">Negócios</option>
+          <option value="Desenvolvimento Pessoal">Desenvolvimento Pessoal</option>
+          <option value="Técnico">Técnico</option>
+          <option value="Segurança">Segurança</option>
+          <option value="Outros">Outros</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Descrição</label>
+      <textarea id="bf-desc" maxlength="500" style="min-height: 80px;" placeholder="Sobre o que é o livro..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Arquivo PDF *</label>
+      <label class="upload-box" for="bf-pdf">
+        <input type="file" id="bf-pdf" accept=".pdf" onchange="onBookPdfChange(event)">
+        <div class="upload-icon">📖</div>
+        <div class="upload-label">Clique para enviar o PDF</div>
+        <div class="upload-file" id="bf-pdf-name"></div>
+      </label>
+    </div>
+
+    <div class="form-group">
+      <label>Capa (opcional)</label>
+      <label class="upload-box" for="bf-cover">
+        <input type="file" id="bf-cover" accept="image/*" onchange="onBookCoverChange(event)">
+        <div class="upload-icon">🖼️</div>
+        <div class="upload-label">Clique para escolher a capa</div>
+        <div class="upload-file" id="bf-cover-name"></div>
+      </label>
+    </div>
+
+    <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+      <input type="checkbox" id="bf-active" checked style="width: auto;">
+      <label for="bf-active" style="margin: 0;">Livro ativo (visível na biblioteca)</label>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeBookForm()">Cancelar</button>
+      <button class="btn-primary" id="bf-save-btn" onclick="saveBook()">Salvar Livro</button>
+    </div>
+  </div>
+</div>
+
+<!-- LEITOR DE LIVRO (PDF) -->
+<div id="book-reader" class="hidden" style="position: fixed; inset: 0; background: var(--branco); z-index: 400; display: flex; flex-direction: column; animation: slideInRight 0.2s ease;">
+  <div class="player-header">
+    <button class="back-btn" onclick="closeBookReader()">← Voltar</button>
+    <div class="title-block">
+      <h3 id="br-title">—</h3>
+      <div class="sub" id="br-author">—</div>
+    </div>
+    <button class="btn-primary" style="padding: 8px 16px;" onclick="downloadCurrentBook()">📥 Baixar PDF</button>
+  </div>
+  <div style="flex: 1; overflow: hidden;">
+    <iframe id="br-iframe" style="width: 100%; height: 100%; border: none;"></iframe>
   </div>
 </div>
 
