@@ -278,6 +278,8 @@ function renderView(view) {
     case 'dashboard':    renderDashboard(); break;
     case 'points':       renderPointsManagement(); break;
     case 'prizes':       renderPrizesView(); break;
+    case 'library':      renderLibraryView(); break;
+    case 'librarylogs':  renderLibraryLogsView(); break;
     default:             main.innerHTML = renderHome();
   }
 }
@@ -335,6 +337,12 @@ async function loadUser() {
     document.getElementById('nav-analytics').classList.remove('hidden');
     document.getElementById('nav-points').classList.remove('hidden');
     document.getElementById('add-user-btn').classList.remove('hidden');
+  }
+
+// Biblioteca — apenas Master administra
+  isLibraryAdmin = isMaster;
+  if (isLibraryAdmin) {
+    document.getElementById('nav-library-logs')?.classList.remove('hidden');
   }
 
   if (isMaster) {
@@ -3383,6 +3391,492 @@ async function createNewUser() {
   }
 }
 
+// ==================== BIBLIOTECA ====================
+let libraryBooks = [];
+let editingBookId = null;
+let editingBookPdfUrl = null;
+let editingBookCoverUrl = null;
+let currentReadingBook = null;
+let isLibraryAdmin = false;
+
+async function renderLibraryView() {
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<div class="state-box">Carregando biblioteca…</div>';
+
+  // Registra visita à página (1x por dia por sessão)
+  const pvKey = 'cde-lib-page-view-' + new Date().toDateString();
+  if (!sessionStorage.getItem(pvKey)) {
+    sessionStorage.setItem(pvKey, '1');
+    logLibraryAction('page_view');
+  }
+
+  try {
+    const { data, error } = await db
+      .from('academy_library_books')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    const allBooks = data || [];
+    libraryBooks = isLibraryAdmin ? allBooks : allBooks.filter(b => b.is_active !== false);
+
+    const total = libraryBooks.length;
+    const categorias = new Set(libraryBooks.map(b => b.category).filter(Boolean)).size;
+
+    const bookCard = (b) => {
+      const coverStyle = b.cover_url
+        ? `background-image: url('${escapeHtml(b.cover_url)}'); background-size: cover; background-position: center;`
+        : '';
+      const inativo = b.is_active === false;
+
+      const adminBtns = isLibraryAdmin ? `
+        <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
+          <button class="btn-secondary btn-small" onclick="event.stopPropagation();openBookForm('${b.id}')">✏️ Editar</button>
+          <button class="btn-danger btn-small" onclick="event.stopPropagation();deleteBook('${b.id}')">🗑</button>
+        </div>` : '';
+
+      return `
+        <div class="course-card" style="cursor:pointer; ${inativo ? 'opacity:0.55;' : ''}" onclick="openBookReader('${b.id}')">
+          <div class="course-cover" style="${coverStyle}">
+            ${!b.cover_url ? '📖' : ''}
+            ${b.category ? `<span class="course-badge" style="background: var(--cde-laranja); color:#fff;">${escapeHtml(b.category)}</span>` : ''}
+            ${inativo ? '<span class="course-badge" style="background:#FDE8EB; color:var(--cde-vermelho); top:auto; bottom:12px;">Inativo</span>' : ''}
+          </div>
+          <div class="course-body">
+            <h3>${escapeHtml(b.title)}</h3>
+            ${b.author ? `<p style="font-size:0.78rem; color:var(--texto-soft); font-style:italic; margin-bottom:6px; font-weight:600;">por ${escapeHtml(b.author)}</p>` : ''}
+            <p>${escapeHtml(b.description || 'Sem descrição.')}</p>
+            <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
+              <button class="btn-primary btn-small" style="flex:1; padding:10px;" onclick="event.stopPropagation();openBookReader('${b.id}')">📖 Ler</button>
+              <button class="btn-secondary btn-small" onclick="event.stopPropagation();downloadBook('${b.id}')" title="Baixar PDF">📥</button>
+            </div>
+            ${adminBtns}
+          </div>
+        </div>`;
+    };
+
+    main.innerHTML = `
+      <div class="section-header">
+        <h2>📖 Biblioteca</h2>
+        <span class="section-sub">${total} livro${total === 1 ? '' : 's'} disponíve${total === 1 ? 'l' : 'is'}${categorias > 0 ? ' · ' + categorias + ' categoria' + (categorias === 1 ? '' : 's') : ''}</span>
+        ${isLibraryAdmin ? `<div class="header-actions"><button class="btn-primary" onclick="openBookForm()">+ Novo Livro</button></div>` : ''}
+      </div>
+
+      ${libraryBooks.length === 0
+        ? renderEmpty('📖', isLibraryAdmin ? 'Nenhum livro cadastrado. Clique em "+ Novo Livro".' : 'Nenhum livro disponível no momento.')
+        : `<div class="courses-grid">${libraryBooks.map(bookCard).join('')}</div>`}
+    `;
+  } catch (e) {
+    console.error('Erro renderLibraryView:', e);
+    main.innerHTML = `<div class="state-box" style="color:var(--cde-vermelho);">Erro ao carregar biblioteca: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function logLibraryAction(action, bookId = null, bookTitle = null) {
+  try {
+    await db.from('academy_library_logs').insert({
+      user_id: currentUser.id,
+      user_name: currentProfile.full_name || currentUser.email,
+      user_sector: currentProfile.sector || null,
+      book_id: bookId,
+      book_title: bookTitle,
+      action
+    });
+  } catch (e) {
+    console.warn('Erro ao registrar log da biblioteca:', e);
+  }
+}
+
+async function openBookReader(bookId) {
+  const book = libraryBooks.find(b => b.id === bookId);
+  if (!book) return showMessage('Livro não encontrado.', 'error');
+
+  currentReadingBook = book;
+  document.getElementById('br-title').textContent = book.title;
+  document.getElementById('br-author').textContent = book.author ? 'por ' + book.author : '—';
+  document.getElementById('br-iframe').src = book.pdf_url;
+  document.getElementById('book-reader').classList.remove('hidden');
+
+  await logLibraryAction('book_open', book.id, book.title);
+}
+
+function closeBookReader() {
+  document.getElementById('book-reader').classList.add('hidden');
+  document.getElementById('br-iframe').src = 'about:blank';
+  currentReadingBook = null;
+}
+
+async function downloadCurrentBook() {
+  if (!currentReadingBook) return;
+  await downloadBook(currentReadingBook.id);
+}
+
+async function downloadBook(bookId) {
+  const book = libraryBooks.find(b => b.id === bookId);
+  if (!book) return;
+
+  await logLibraryAction('book_download', book.id, book.title);
+
+  try {
+    const link = document.createElement('a');
+    link.href = book.pdf_url;
+    link.download = (book.title || 'livro').replace(/[^a-zA-Z0-9 \-_]/g, '') + '.pdf';
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showMessage('Download iniciado. 📥', 'success');
+  } catch (e) {
+    window.open(book.pdf_url, '_blank');
+  }
+}
+
+// CRUD LIVRO
+function openBookForm(bookId = null) {
+  if (!isLibraryAdmin) return showMessage('Apenas Master pode gerenciar a biblioteca.', 'error');
+
+  editingBookId = bookId;
+  editingBookPdfUrl = null;
+  editingBookCoverUrl = null;
+
+  document.getElementById('bf-title-h').textContent = bookId ? 'Editar Livro' : 'Novo Livro';
+  document.getElementById('bf-title').value = '';
+  document.getElementById('bf-author').value = '';
+  document.getElementById('bf-category').value = '';
+  document.getElementById('bf-desc').value = '';
+  document.getElementById('bf-pdf').value = '';
+  document.getElementById('bf-cover').value = '';
+  document.getElementById('bf-pdf-name').textContent = '';
+  document.getElementById('bf-cover-name').textContent = '';
+  document.getElementById('bf-active').checked = true;
+
+  if (bookId) {
+    const b = libraryBooks.find(x => x.id === bookId);
+    if (b) {
+      document.getElementById('bf-title').value = b.title || '';
+      document.getElementById('bf-author').value = b.author || '';
+      document.getElementById('bf-category').value = b.category || '';
+      document.getElementById('bf-desc').value = b.description || '';
+      document.getElementById('bf-active').checked = b.is_active !== false;
+      editingBookPdfUrl = b.pdf_url || null;
+      editingBookCoverUrl = b.cover_url || null;
+      if (b.pdf_url) document.getElementById('bf-pdf-name').textContent = '✓ PDF atual mantido';
+      if (b.cover_url) document.getElementById('bf-cover-name').textContent = '✓ Capa atual mantida';
+    }
+  }
+
+  document.getElementById('book-form-modal').classList.remove('hidden');
+}
+
+function closeBookForm() {
+  document.getElementById('book-form-modal').classList.add('hidden');
+  editingBookId = null;
+  editingBookPdfUrl = null;
+  editingBookCoverUrl = null;
+}
+
+function onBookPdfChange(e) {
+  const f = e.target.files[0];
+  document.getElementById('bf-pdf-name').textContent = f ? '✓ ' + f.name : '';
+}
+function onBookCoverChange(e) {
+  const f = e.target.files[0];
+  document.getElementById('bf-cover-name').textContent = f ? '✓ ' + f.name : '';
+}
+
+async function saveBook() {
+  const title = document.getElementById('bf-title').value.trim();
+  const author = document.getElementById('bf-author').value.trim();
+  const category = document.getElementById('bf-category').value || null;
+  const description = document.getElementById('bf-desc').value.trim();
+  const is_active = document.getElementById('bf-active').checked;
+  const pdfFile = document.getElementById('bf-pdf').files[0];
+  const coverFile = document.getElementById('bf-cover').files[0];
+
+  if (!title) return showMessage('Título obrigatório.', 'error');
+  if (!editingBookId && !pdfFile) return showMessage('Selecione o PDF do livro.', 'error');
+
+  const btn = document.getElementById('bf-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Salvando…';
+
+  try {
+    let pdf_url = editingBookPdfUrl;
+    let cover_url = editingBookCoverUrl;
+
+    if (pdfFile) {
+      if (pdfFile.size > 50 * 1024 * 1024) throw new Error('PDF muito grande. Máximo 50MB.');
+      const path = `library/pdfs/${Date.now()}_${pdfFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+      const { error: upErr } = await db.storage.from(BUCKET).upload(path, pdfFile, { upsert: true });
+      if (upErr) throw upErr;
+      pdf_url = db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    }
+
+    if (coverFile) {
+      if (coverFile.size > 5 * 1024 * 1024) throw new Error('Capa muito grande. Máximo 5MB.');
+      const path = `library/covers/${Date.now()}_${coverFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+      const { error: upErr } = await db.storage.from(BUCKET).upload(path, coverFile, { upsert: true });
+      if (upErr) throw upErr;
+      cover_url = db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    }
+
+    const payload = {
+      title,
+      author: author || null,
+      category,
+      description: description || null,
+      pdf_url,
+      cover_url,
+      is_active
+    };
+
+    if (editingBookId) {
+      const { error } = await db.from('academy_library_books').update(payload).eq('id', editingBookId);
+      if (error) throw error;
+      showMessage('Livro atualizado!', 'success');
+    } else {
+      payload.created_by = currentUser.id;
+      payload.created_by_name = currentProfile.full_name || currentUser.email;
+      const { error } = await db.from('academy_library_books').insert(payload);
+      if (error) throw error;
+      showMessage('Livro adicionado! 📖', 'success');
+    }
+
+    closeBookForm();
+    await renderLibraryView();
+  } catch (e) {
+    console.error('Erro saveBook:', e);
+    showMessage('Erro: ' + (e.message || 'falha ao salvar'), 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Salvar Livro';
+  }
+}
+
+async function deleteBook(bookId) {
+  const b = libraryBooks.find(x => x.id === bookId);
+  if (!b) return;
+  if (!confirm(`Excluir o livro "${b.title}"?\n\nO log de acessos será mantido para auditoria.`)) return;
+  try {
+    const { error } = await db.from('academy_library_books').delete().eq('id', bookId);
+    if (error) throw error;
+    showMessage('Livro excluído.', 'success');
+    await renderLibraryView();
+  } catch (e) {
+    showMessage('Erro: ' + e.message, 'error');
+  }
+}
+
+// ==================== LOG DE ACESSOS À BIBLIOTECA ====================
+let libraryLogsCache = [];
+let libraryLogsFilters = { user: '', action: '', search: '' };
+
+async function renderLibraryLogsView() {
+  if (!isLibraryAdmin) return showMessage('Acesso restrito.', 'error');
+
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<div class="state-box">Carregando logs…</div>';
+
+  try {
+    const { data, error } = await db
+      .from('academy_library_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(1000);
+    if (error) throw error;
+
+    libraryLogsCache = data || [];
+
+    const hoje = new Date().toDateString();
+    const totalHoje    = libraryLogsCache.filter(l => new Date(l.created_at).toDateString() === hoje).length;
+    const usersUnicos  = new Set(libraryLogsCache.map(l => l.user_id)).size;
+    const livrosAbertos = libraryLogsCache.filter(l => l.action === 'book_open').length;
+    const downloads    = libraryLogsCache.filter(l => l.action === 'book_download').length;
+    const pageViews    = libraryLogsCache.filter(l => l.action === 'page_view').length;
+
+    main.innerHTML = `
+      <div class="section-header">
+        <h2>📋 Log da Biblioteca</h2>
+        <span class="section-sub">Histórico de acessos aos livros</span>
+        <div class="header-actions">
+          <button class="btn-secondary" onclick="exportLibraryLogsCSV()">📥 Exportar CSV</button>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-icon">👁</div><div class="stat-value">${pageViews}</div><div class="stat-label">Visitas à página</div></div>
+        <div class="stat-card"><div class="stat-icon">📖</div><div class="stat-value" style="color:var(--verde);">${livrosAbertos}</div><div class="stat-label">Livros abertos</div></div>
+        <div class="stat-card"><div class="stat-icon">📥</div><div class="stat-value" style="color:var(--cde-laranja-escuro);">${downloads}</div><div class="stat-label">Downloads</div></div>
+        <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-value" style="color:var(--roxo-medio);">${usersUnicos}</div><div class="stat-label">Usuários únicos</div></div>
+        <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-value" style="color:var(--azul);">${totalHoje}</div><div class="stat-label">Eventos hoje</div></div>
+      </div>
+
+      <div style="background: var(--branco); border-radius:14px; padding:18px; border:1px solid var(--cinza-borda); margin-bottom:16px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+          <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.75rem;">Buscar</label>
+            <input type="text" id="liblog-search" placeholder="Nome, livro, setor..." value="${escapeHtml(libraryLogsFilters.search)}" oninput="applyLibraryLogFilters()">
+          </div>
+          <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.75rem;">Usuário</label>
+            <select id="liblog-user-filter" onchange="applyLibraryLogFilters()">
+              <option value="">Todos</option>
+              ${[...new Set(libraryLogsCache.map(l => JSON.stringify({ id: l.user_id, name: l.user_name })))]
+                .map(s => JSON.parse(s))
+                .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                .map(u => `<option value="${u.id}" ${libraryLogsFilters.user === u.id ? 'selected' : ''}>${escapeHtml(u.name || '—')}</option>`)
+                .join('')}
+            </select>
+          </div>
+          <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.75rem;">Ação</label>
+            <select id="liblog-action-filter" onchange="applyLibraryLogFilters()">
+              <option value="">Todas</option>
+              <option value="page_view"     ${libraryLogsFilters.action === 'page_view' ? 'selected' : ''}>👁 Visita à página</option>
+              <option value="book_open"     ${libraryLogsFilters.action === 'book_open' ? 'selected' : ''}>📖 Livro aberto</option>
+              <option value="book_download" ${libraryLogsFilters.action === 'book_download' ? 'selected' : ''}>📥 Download</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="liblog-results"></div>
+    `;
+
+    renderLibraryLogsResults();
+  } catch (e) {
+    console.error('Erro renderLibraryLogsView:', e);
+    main.innerHTML = `<div class="state-box" style="color:var(--cde-vermelho);">Erro: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function applyLibraryLogFilters() {
+  libraryLogsFilters.search = (document.getElementById('liblog-search')?.value || '').toLowerCase().trim();
+  libraryLogsFilters.user   = document.getElementById('liblog-user-filter')?.value || '';
+  libraryLogsFilters.action = document.getElementById('liblog-action-filter')?.value || '';
+  renderLibraryLogsResults();
+}
+
+function renderLibraryLogsResults() {
+  const container = document.getElementById('liblog-results');
+  if (!container) return;
+
+  let filtered = libraryLogsCache;
+  if (libraryLogsFilters.user)   filtered = filtered.filter(l => l.user_id === libraryLogsFilters.user);
+  if (libraryLogsFilters.action) filtered = filtered.filter(l => l.action === libraryLogsFilters.action);
+  if (libraryLogsFilters.search) {
+    const q = libraryLogsFilters.search;
+    filtered = filtered.filter(l =>
+      (l.user_name || '').toLowerCase().includes(q) ||
+      (l.book_title || '').toLowerCase().includes(q) ||
+      (l.user_sector || '').toLowerCase().includes(q)
+    );
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="state-box"><span class="emoji">🔍</span>Nenhum evento encontrado com esses filtros.</div>';
+    return;
+  }
+
+  const actionMeta = {
+    page_view:     { icon: '👁', label: 'Visita à página', color: 'var(--azul)' },
+    book_open:     { icon: '📖', label: 'Livro aberto',    color: 'var(--verde)' },
+    book_download: { icon: '📥', label: 'Download',        color: 'var(--cde-laranja-escuro)' }
+  };
+
+  const groups = {};
+  filtered.forEach(l => {
+    const d = new Date(l.created_at).toLocaleDateString('pt-BR');
+    if (!groups[d]) groups[d] = [];
+    groups[d].push(l);
+  });
+
+  container.innerHTML = Object.entries(groups).map(([dia, eventos]) => `
+    <div style="margin-bottom: 20px;">
+      <div style="font-size: 0.82rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--texto-soft); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid var(--cinza-borda);">
+        📅 ${dia} · ${eventos.length} evento${eventos.length === 1 ? '' : 's'}
+      </div>
+      <div style="background: var(--branco); border-radius:12px; padding: 4px 16px; border:1px solid var(--cinza-borda);">
+        ${eventos.map((l, i) => {
+          const meta = actionMeta[l.action] || { icon: '•', label: l.action, color: 'var(--texto-soft)' };
+          const hora = new Date(l.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          return `
+            <div style="padding: 12px 0; ${i < eventos.length - 1 ? 'border-bottom: 1px solid var(--cinza-borda);' : ''} display: flex; gap: 12px; align-items: flex-start;">
+              <div style="font-size: 1.4rem; line-height: 1;">${meta.icon}</div>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 0.9rem; font-weight: 600;">
+                  <span style="color: ${meta.color}; font-weight: 700;">${escapeHtml(l.user_name || '—')}</span>
+                  ${l.user_sector ? `<span style="color: var(--texto-soft); font-weight: 500; font-size: 0.8rem;"> (${escapeHtml(l.user_sector)})</span>` : ''}
+                  <span style="color: var(--texto-soft); font-weight: 500;"> — ${meta.label}</span>
+                  ${l.book_title ? ` <span style="color: var(--texto);">"${escapeHtml(l.book_title)}"</span>` : ''}
+                </div>
+              </div>
+              <div style="font-size: 0.75rem; color: var(--texto-mute); white-space: nowrap;">${hora}</div>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function exportLibraryLogsCSV() {
+  if (!libraryLogsCache || libraryLogsCache.length === 0) {
+    return showMessage('Nenhum evento para exportar.', 'info');
+  }
+
+  let filtered = [...libraryLogsCache];
+  if (libraryLogsFilters.user)   filtered = filtered.filter(l => l.user_id === libraryLogsFilters.user);
+  if (libraryLogsFilters.action) filtered = filtered.filter(l => l.action === libraryLogsFilters.action);
+  if (libraryLogsFilters.search) {
+    const q = libraryLogsFilters.search;
+    filtered = filtered.filter(l =>
+      (l.user_name || '').toLowerCase().includes(q) ||
+      (l.book_title || '').toLowerCase().includes(q) ||
+      (l.user_sector || '').toLowerCase().includes(q)
+    );
+  }
+
+  if (filtered.length === 0) return showMessage('Nenhum evento corresponde aos filtros.', 'info');
+
+  const actionLabel = { page_view: 'Visita à página', book_open: 'Livro aberto', book_download: 'Download' };
+  const headers = ['Data', 'Hora', 'Usuário', 'Setor', 'Ação', 'Livro'];
+
+  const csvEscape = (v) => {
+    if (v === null || v === undefined) return '';
+    const s = String(v);
+    return /[",;\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+
+  const rows = filtered.map(l => {
+    const dt = new Date(l.created_at);
+    return [
+      dt.toLocaleDateString('pt-BR'),
+      dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      l.user_name || '',
+      l.user_sector || '',
+      actionLabel[l.action] || l.action,
+      l.book_title || ''
+    ];
+  });
+
+  const lines = [headers.map(csvEscape).join(';'), ...rows.map(r => r.map(csvEscape).join(';'))];
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+
+  const now = new Date();
+  const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}h${String(now.getMinutes()).padStart(2, '0')}`;
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `log-biblioteca_${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  showMessage(`📥 ${filtered.length} evento${filtered.length === 1 ? '' : 's'} exportado${filtered.length === 1 ? '' : 's'}.`, 'success');
+}
+
 // ==================== INIT ====================
 db.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') window.location.href = PDI_URL; });
 
@@ -3397,6 +3891,9 @@ document.getElementById('notifications-modal')?.addEventListener('click', e => {
 document.getElementById('new-notification-modal')?.addEventListener('click', e => { if (e.target.id === 'new-notification-modal') closeNewNotificationForm(); });
 document.getElementById('points-adjust-modal')?.addEventListener('click', e => {
   if (e.target.id === 'points-adjust-modal') closePointsAdjustModal();
+});
+document.getElementById('book-form-modal')?.addEventListener('click', e => {
+  if (e.target.id === 'book-form-modal') closeBookForm();
 });
 
 document.getElementById('prize-form-modal')?.addEventListener('click', e => {
