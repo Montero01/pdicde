@@ -13,6 +13,8 @@
   })();
   </script>
   <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="icones-cde.css?v=20261120">
+<link rel="stylesheet" href="tema-cde.css?v=20261120">
    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -41,20 +43,16 @@
 <!-- APP -->
 <div id="app-view" class="hidden">
 
-  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()" aria-hidden="true"></div>
 
-  <aside class="sidebar" id="sidebar">
+  <button type="button" id="mobile-menu" aria-controls="sidebar" aria-expanded="false" onclick="toggleSidebar()"><span aria-hidden="true">☰</span><span>Menu</span></button>
+  <aside class="sidebar" id="sidebar" aria-label="Menu do Academy">
     <div class="sidebar-logo">
       <img src="https://casadosespelhos.com.br/wp-content/uploads/2018/05/marca_cde_cores_horizontal_tag_bl-2048x713.png" alt="CDE">
+      <p>CDE Academy</p><small>Aprendizado e desenvolvimento</small>
     </div>
-    <div class="sidebar-user">
-      <div class="sidebar-avatar" id="user-avatar" onclick="openAvatarModal()">CD</div>
-      <div class="sidebar-user-name" id="user-name">Carregando…</div>
-      <div class="sidebar-user-position" id="user-position"></div>
-      <div class="sidebar-user-role" id="user-role"></div>
-      <div class="sidebar-user-sector hidden" id="user-sector"></div>
-    </div>
-    <nav class="sidebar-nav">
+
+    <nav class="sidebar-nav" aria-label="Navegação do Academy">
       <button class="nav-item active" data-view="home" onclick="switchView('home')">
         <span class="nav-icon">🏠</span><span>Página Inicial</span>
       </button>
@@ -73,11 +71,12 @@
       <button class="nav-item" data-view="library" onclick="switchView('library')">
        <span class="nav-icon">📖</span><span>Biblioteca</span>
       </button>
-      <button class="nav-item" data-view="report" onclick="switchView('report')">
-        <span class="nav-icon">📊</span><span>Meu Desempenho</span>
-      </button>
       <button class="nav-item" data-view="certificates" onclick="switchView('certificates')">
         <span class="nav-icon">🎓</span><span>Certificados</span>
+      </button>
+      <div class="nav-group-title">Performance</div>
+      <button class="nav-item" data-view="report" onclick="switchView('report')">
+        <span class="nav-icon">📊</span><span>Meu Desempenho</span>
       </button>
       <button class="nav-item hidden" id="nav-analytics" data-view="analytics" onclick="switchView('analytics')">
         <span class="nav-icon">📈</span><span>Analytics</span>
@@ -85,6 +84,7 @@
       <button class="nav-item hidden" id="nav-dashboard" data-view="dashboard" onclick="switchView('dashboard')">
         <span class="nav-icon">📊</span><span>Dashboard Executivo</span>
       </button>
+      <div class="nav-group-title hidden" id="management-heading">Gestão</div>
       <button class="nav-item hidden" id="nav-manage" data-view="manage" onclick="switchView('manage')">
         <span class="nav-icon">⚙️</span><span>Gerenciar Cursos</span>
       </button>
@@ -96,6 +96,14 @@
 </button>
     </nav>
     <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <button type="button" class="sidebar-avatar" id="user-avatar" onclick="openAvatarModal()" title="Alterar foto de perfil" aria-label="Alterar foto de perfil">CD</button>
+      <div class="sidebar-user-name" id="user-name">Carregando…</div>
+      <div class="sidebar-user-position" id="user-position"></div>
+      <div class="sidebar-user-role" id="user-role"></div>
+      <div class="sidebar-user-sector hidden" id="user-sector"></div>
+    </div>
+      <button class="logout-btn" id="theme-toggle" onclick="toggleTheme()" title="Alternar tema"><span id="theme-icon">🌙</span><span>Aparência</span></button>
       <button class="logout-btn" onclick="logout()">
         <span>🚪</span><span>Sair da conta</span>
       </button>
@@ -120,17 +128,11 @@
     <span>🔔</span>
     <span id="notif-badge" class="hidden" style="position:absolute; top:-4px; right:-4px; background:#C8102E; color:#fff; font-size:0.62rem; font-weight:800; min-width:16px; height:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; padding:0 4px; line-height:1;">0</span>
   </button>
-  <button class="icon-btn" id="theme-toggle" onclick="toggleTheme()" title="Alternar tema">
-    <span id="theme-icon">🌙</span>
-  </button>
 </div>
       <div class="topbar-avatar" id="topbar-avatar" onclick="openAvatarModal()" title="Alterar foto">CD</div>
     </header>
     <main class="main-content" id="main-content"></main>
-    <footer class="main-footer">
-      Sistema desenvolvido <span class="footer-dev">para</span>
-      <span class="footer-brand">CDE Blindex®</span> · 2026
-    </footer>
+    <footer class="main-footer">Plataforma de Desenvolvimento Individual - <strong class="cde-gradient-text">CDE - Blindex</strong> - Todos os Direitos Reservados 2026.</footer>
   </div>
 </div>
 
@@ -697,6 +699,8 @@
   </div>
 </div>
 
-<script src="app.js"></script>
+<script src="layout-cde.js?v=20261120"></script>
+<script src="app.js?v=20261120"></script>
+<script src="icones-cde.js?v=20261120"></script>
 </body>
 </html>

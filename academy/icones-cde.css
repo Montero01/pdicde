@@ -1,0 +1,59 @@
+/* Padrão de ícones CDE: claro/escuro, sem alterar as cores dos botões. */
+:root { --cde-academy-icon: #C05A12; }
+[data-theme="dark"] { --cde-academy-icon: #FFAA66; }
+svg.cde-academy-icon {
+  display: inline-block;
+  width: 20px; height: 20px; flex: 0 0 20px;
+  color: var(--cde-academy-icon);
+  fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+  vertical-align: middle; pointer-events: none;
+}
+.nav-icon {
+  display: inline-flex; justify-content: center; align-items: center;
+  min-width: 22px; line-height: 1;
+}
+.nav-item.active .cde-academy-icon,
+.btn-primary .cde-academy-icon,
+.btn-success .cde-academy-icon,
+.btn-danger .cde-academy-icon,
+.btn-complete .cde-academy-icon { color: inherit; }
+@media (max-width: 600px) {
+  svg.cde-academy-icon { width: 18px; height: 18px; flex-basis: 18px; }
+  button.cde-has-icon, a.cde-has-icon { min-height: 44px; }
+}
+
+/* V2: títulos e indicadores das páginas internas. */
+:root { --cde-academy-icon-bg: rgba(232,119,34,.10); }
+[data-theme="dark"] { --cde-academy-icon-bg: rgba(232,119,34,.14); }
+#main-content .stat-icon {
+  display: flex; align-items: center; min-height: 28px; line-height: 1;
+}
+#main-content .stat-icon .cde-academy-icon {
+  width: 28px; height: 28px; flex-basis: 28px;
+}
+#main-content h1 .cde-academy-icon { width: 26px; height: 26px; }
+#main-content h2 .cde-academy-icon,
+#main-content h3 .cde-academy-icon { width: 20px; height: 20px; }
+#main-content .dash-header .cde-academy-icon { color: inherit; }
+#main-content .dash-setor-icon.comercial,
+#main-content .dash-setor-icon.producao,
+#main-content .dash-setor-icon.administrativo,
+#main-content .dash-alert-icon.warn,
+#main-content .dash-alert-icon.info,
+#main-content .dash-alert-icon.alert,
+#main-content .dash-alert-icon.ok {
+  background: var(--cde-academy-icon-bg);
+}
+#main-content .dash-top-medal {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 2px; min-width: 44px;
+}
+#main-content .cde-medal-position {
+  font-size: 11px; line-height: 1.2; color: var(--texto-soft);
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  #main-content .stat-icon .cde-academy-icon { width: 24px; height: 24px; flex-basis: 24px; }
+  #main-content h1 .cde-academy-icon { width: 22px; height: 22px; }
+}

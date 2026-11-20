@@ -253,14 +253,18 @@ function getVideoEmbedUrl(url) {
 
 // ==================== NAVEGAÇÃO ====================
 function toggleSidebar() {
+  if (window.CDEAcademyLayout) return window.CDEAcademyLayout.toggle();
   document.getElementById('sidebar').classList.toggle('open');
   document.getElementById('sidebar-overlay').classList.toggle('open');
 }
 function switchView(view) {
   currentView = view;
   document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.view === view));
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('sidebar-overlay').classList.remove('open');
+  if (window.CDEAcademyLayout) window.CDEAcademyLayout.close(false);
+  else {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+  }
   window.scrollTo(0, 0);
   renderView(view);
 }
