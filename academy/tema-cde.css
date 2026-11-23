@@ -48,3 +48,5 @@ body :is(.btn-primary,.btn-secondary,.btn-success,.btn-danger,.hero-btn,.back-bt
 :root body :is(.player-header,.player-footer) :is(.back-btn,.btn-nav,.btn-complete){background:var(--academy-action);background-image:none;border:0;color:#fff;box-shadow:none}
 :root body :is(.player-header,.player-footer) :is(.back-btn,.btn-nav,.btn-complete):hover{background:var(--academy-action-hover);color:#fff}
 :root body .player-footer .btn-complete.done,:root body .player-footer .btn-complete.done:hover{background:var(--verde-bg);color:var(--verde);box-shadow:none}
+
+#app-view .sidebar-nav a.academy-back-pdi{text-decoration:none;margin-bottom:14px}
