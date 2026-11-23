@@ -30,3 +30,21 @@ body :is(.card,.stat-card,.course-card,.modal-box,.dash-card){border:1px solid v
 [data-theme=dark]{--branco:#1a222e}#app-view .topbar{background:var(--card-bg)}
 :root body :is(.btn-primary,.btn-secondary,.btn-success,.btn-danger,.hero-btn,.back-btn,.btn-nav,.btn-complete,.icon-btn){background:var(--cde-action-gradient);color:#fff;border-color:transparent}
 :root body :is(.btn-primary,.btn-secondary,.btn-success,.btn-danger,.hero-btn,.back-btn,.btn-nav,.btn-complete,.icon-btn):hover{background:var(--cde-action-gradient);color:#fff}
+
+/* Logo com proporção natural; a placa recebe o espaço interno, sem limitar a altura da imagem. */
+#app-view .sidebar-logo{height:auto;min-height:0;display:flex;justify-content:center;align-items:center;padding:16px 8px}
+#app-view .academy-logo-plate{display:flex;align-items:center;justify-content:center;width:100%;max-width:204px;padding:10px;background:#fff;border-radius:9px;box-sizing:border-box}
+#app-view .sidebar-logo .academy-logo-plate img{display:block;width:100%;max-width:100%;height:auto;max-height:none;object-fit:contain;padding:0;margin:0;border-radius:0;background:transparent;flex:0 1 auto}
+/* Botões em azul; ferramentas do cabeçalho em superfície neutra e ícones com contraste. */
+:root{--academy-action:#1d3d5d;--academy-action-hover:#274e73;--academy-tool:#edf2f7;--academy-tool-hover:#dfe8f1;--academy-tool-text:#27445f}
+[data-theme=dark]{--academy-action:#315573;--academy-action-hover:#3b6587;--academy-tool:#263447;--academy-tool-hover:#33465d;--academy-tool-text:#edf3fa}
+:root body :is(.btn-primary,.btn-secondary,.btn-success,.btn-danger,.hero-btn,.back-btn,.btn-nav,.btn-complete){background:var(--academy-action);background-image:none;border:0;color:#fff;box-shadow:none}
+:root body :is(.btn-primary,.btn-secondary,.btn-success,.btn-danger,.hero-btn,.back-btn,.btn-nav,.btn-complete):hover{background:var(--academy-action-hover);background-image:none;color:#fff;box-shadow:none;transform:none;filter:none}
+#app-view .topbar .icon-btn{background:var(--academy-tool);background-image:none;color:var(--academy-tool-text);border:0;box-shadow:none;filter:none}
+#app-view .topbar .icon-btn:hover{background:var(--academy-tool-hover);color:var(--academy-tool-text);transform:none}
+body :is(.btn-primary,.btn-secondary,.btn-success,.btn-danger,.hero-btn,.back-btn,.btn-nav,.btn-complete,.icon-btn) svg.cde-academy-icon{color:inherit}
+:root body .player-footer .btn-complete.done{background:var(--verde-bg);color:var(--verde);box-shadow:none}
+@media(max-width:960px){#app-view .academy-logo-plate{max-width:174px;padding:8px}#app-view .sidebar-logo{padding:12px 8px}}
+:root body :is(.player-header,.player-footer) :is(.back-btn,.btn-nav,.btn-complete){background:var(--academy-action);background-image:none;border:0;color:#fff;box-shadow:none}
+:root body :is(.player-header,.player-footer) :is(.back-btn,.btn-nav,.btn-complete):hover{background:var(--academy-action-hover);color:#fff}
+:root body .player-footer .btn-complete.done,:root body .player-footer .btn-complete.done:hover{background:var(--verde-bg);color:var(--verde);box-shadow:none}
