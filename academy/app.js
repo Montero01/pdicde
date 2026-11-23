@@ -1,7 +1,7 @@
 // ==================== CONFIG ====================
 const SUPABASE_URL = 'https://whjyvphamkbjcrdzhzoc.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_EyZgqDQTSV-M-O3_l63V7Q_LFcFDl69';
-const PDI_URL = 'https://montero01.github.io/pdicde/';
+const PDI_URL = 'https://montero01.github.io/testepdicdev2/';
 const BUCKET = 'academy';
 
 const { createClient } = supabase;
@@ -368,6 +368,7 @@ async function loadUser() {
 }
 async function logout() {
   if (!confirm('Sair da CDE Academy? Você será redirecionado para o PDI.')) return;
+  clearNotificationState();
   await db.auth.signOut();
   window.location.href = PDI_URL;
 }
@@ -2857,27 +2858,55 @@ function initDashEvolucaoChart(meses) {
 // ==================== NOTIFICAÇÕES ====================
 let notificationsList = [];
 let unreadNotifications = 0;
+let notificationLoadVersion = 0;
+let notificationExpiryTimer = null;
+let notificationMarking = false;
+
+function clearNotificationState() {
+  notificationLoadVersion++;
+  clearTimeout(notificationExpiryTimer);
+  notificationExpiryTimer = null;
+  notificationsList = [];
+  unreadNotifications = 0;
+  document.getElementById('notifications-list')?.replaceChildren();
+  document.getElementById('notifications-modal')?.classList.add('hidden');
+  updateNotifBadge();
+}
+
+function expireNotificationCache() {
+  const now = Date.now();
+  notificationsList = notificationsList.filter(n => !n.read_at || !Number.isFinite(n.localExpiresAt) || n.localExpiresAt > now);
+  if (!document.getElementById('notifications-modal').classList.contains('hidden')) renderNotificationsList();
+  scheduleNotificationExpiry();
+}
+
+function scheduleNotificationExpiry() {
+  clearTimeout(notificationExpiryTimer);
+  const delays = notificationsList.filter(n => n.read_at && Number.isFinite(n.localExpiresAt))
+    .map(n => Math.max(0, n.localExpiresAt - Date.now()));
+  if (!delays.length) return;
+  notificationExpiryTimer = setTimeout(() => { expireNotificationCache(); loadNotifications(); }, Math.min(2147483647, Math.max(100, Math.min(...delays) + 50)));
+}
 
 async function loadNotifications() {
+  const owner = currentUser?.id;
+  if (!owner) { clearNotificationState(); return false; }
+  const version = ++notificationLoadVersion;
   try {
-    const { data, error } = await db
-      .from('academy_notifications')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50);
+    const { data, error } = await db.rpc('academy_notification_inbox');
     if (error) throw error;
-    notificationsList = data || [];
-
-    const { data: reads } = await db
-      .from('academy_notification_reads')
-      .select('notification_id')
-      .eq('user_id', currentUser.id);
-    const readSet = new Set((reads || []).map(r => r.notification_id));
-
-    unreadNotifications = notificationsList.filter(n => !readSet.has(n.id)).length;
+    if (version !== notificationLoadVersion || currentUser?.id !== owner) return false;
+    const loadedAt = Date.now();
+    notificationsList = (data?.rows || []).map(n => ({ ...n, localExpiresAt: n.read_at && n.expires_in_ms !== null && Number.isFinite(Number(n.expires_in_ms)) ? loadedAt + Number(n.expires_in_ms) : null }));
+    unreadNotifications = Number(data?.unread_count || 0);
     updateNotifBadge();
+    scheduleNotificationExpiry();
+    if (!document.getElementById('notifications-modal').classList.contains('hidden')) renderNotificationsList();
+    return true;
   } catch (e) {
+    if (version !== notificationLoadVersion || currentUser?.id !== owner) return false;
     console.error('Erro ao carregar notificações:', e);
+    return false;
   }
 }
 
@@ -2887,17 +2916,17 @@ function updateNotifBadge() {
   if (unreadNotifications > 0) {
     badge.textContent = unreadNotifications > 9 ? '9+' : String(unreadNotifications);
     badge.classList.remove('hidden');
-  } else {
-    badge.classList.add('hidden');
-  }
+  } else badge.classList.add('hidden');
 }
 
 async function openNotificationsModal() {
-  await loadNotifications();
+  const owner = currentUser?.id;
+  if (!await loadNotifications() || currentUser?.id !== owner) {
+    showMessage('Não foi possível carregar as notificações. Tente novamente.', 'error');
+    return;
+  }
   renderNotificationsList();
-  const newBtn = document.getElementById('btn-new-notification');
-  if (canManage) newBtn.classList.remove('hidden');
-  else newBtn.classList.add('hidden');
+  document.getElementById('btn-new-notification').classList.toggle('hidden', !canManage);
   document.getElementById('notifications-modal').classList.remove('hidden');
   await markAllNotificationsRead();
 }
@@ -2907,31 +2936,28 @@ function closeNotificationsModal() {
 }
 
 async function markAllNotificationsRead() {
+  if (notificationMarking || !currentUser?.id) return;
+  const ids = notificationsList.filter(n => !n.read_at).map(n => n.id);
+  if (!ids.length) return;
+  const owner = currentUser.id;
+  notificationMarking = true;
   try {
-    const { data: reads } = await db
-      .from('academy_notification_reads')
-      .select('notification_id')
-      .eq('user_id', currentUser.id);
-    const readSet = new Set((reads || []).map(r => r.notification_id));
-
-    const toInsert = notificationsList
-      .filter(n => !readSet.has(n.id))
-      .map(n => ({ notification_id: n.id, user_id: currentUser.id }));
-
-    if (toInsert.length > 0) {
-      await db.from('academy_notification_reads').insert(toInsert);
-      unreadNotifications = 0;
-      updateNotifBadge();
-    }
+    const { error } = await db.rpc('academy_notifications_mark_opened', { p_ids: ids });
+    if (error) throw error;
+    if (currentUser?.id === owner) await loadNotifications();
   } catch (e) {
     console.error('Erro ao marcar como lidas:', e);
-  }
+    if (currentUser?.id === owner) showMessage('Não foi possível registrar a leitura. Tente abrir as notificações novamente.', 'error');
+  } finally { notificationMarking = false; }
 }
+
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && currentUser?.id) { expireNotificationCache(); loadNotifications(); } });
+window.addEventListener('focus', () => { if (currentUser?.id) { expireNotificationCache(); loadNotifications(); } });
 
 function renderNotificationsList() {
   const container = document.getElementById('notifications-list');
   if (notificationsList.length === 0) {
-    container.innerHTML = '<div class="state-box"><span class="emoji">🔕</span>Nenhuma notificação ainda.</div>';
+    container.innerHTML = '<div class="state-box"><span class="emoji">🔕</span>Nenhuma notificação no momento.</div>';
     return;
   }
   container.innerHTML = notificationsList.map(n => `
@@ -3882,7 +3908,7 @@ function exportLibraryLogsCSV() {
 }
 
 // ==================== INIT ====================
-db.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') window.location.href = PDI_URL; });
+db.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') { clearNotificationState(); window.location.href = PDI_URL; } });
 
 document.getElementById('course-modal')?.addEventListener('click', e => { if (e.target.id === 'course-modal') closeCourseModal(); });
 document.getElementById('course-form-modal')?.addEventListener('click', e => { if (e.target.id === 'course-form-modal') closeCourseForm(); });
