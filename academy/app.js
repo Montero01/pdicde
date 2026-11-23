@@ -1,14 +1,14 @@
 // ==================== CONFIG ====================
 const SUPABASE_URL = 'https://whjyvphamkbjcrdzhzoc.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_EyZgqDQTSV-M-O3_l63V7Q_LFcFDl69';
-const PDI_URL = 'https://montero01.github.io/testepdicdev2/';
+const PDI_URL = window.CDEAcademyPDI.pdiUrl;
 const BUCKET = 'academy';
 
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: window.localStorage,
-    storageKey: 'cde-auth-session',
+    storageKey: window.CDEAcademyPDI.sessionStorageKey,
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true
